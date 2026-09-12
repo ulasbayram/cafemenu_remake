@@ -1,0 +1,124 @@
+import { z } from "zod";
+export const itemSchema = z.object({
+  id: z.string().min(1).max(80),
+  name: z.string().trim().min(1).max(100),
+  description: z.string().max(300),
+  price: z.number().finite().min(0).max(1000000),
+  category: z.string().trim().min(1).max(60),
+  available: z.boolean(),
+});
+export const cafeSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  slug: z
+    .string()
+    .regex(/^[a-z][a-z0-9-]{2,59}$/)
+    .refine(
+      (s) =>
+        ![
+          "api",
+          "admin",
+          "signin-with-chatgpt",
+          "signout-with-chatgpt",
+          "callback",
+          "favicon",
+        ].includes(s),
+      "Bu adres kullanılamaz.",
+    ),
+  subtitle: z.string().max(150),
+  location: z.string().max(150),
+  accent: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+  style: z.enum(["classic", "modern", "minimal"]),
+  background: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .optional(),
+  textColor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .optional(),
+  font: z.enum(["serif", "sans", "mono"]).optional(),
+  scale: z.number().min(0.9).max(1.3).optional(),
+  showBranding: z.boolean().optional(),
+  published: z.boolean(),
+  items: z.array(itemSchema).max(1000),
+});
+export type CafeData = z.infer<typeof cafeSchema>;
+export type Cafe = CafeData & { id: string; createdAt: string };
+export type Item = z.infer<typeof itemSchema>;
+export const sampleItems: Item[] = [
+  {
+    id: "espresso",
+    name: "Espresso",
+    description: "Yoğun gövdeli, taze çekilmiş kahve.",
+    price: 95,
+    category: "Kahveler",
+    available: true,
+  },
+  {
+    id: "latte",
+    name: "Caffè Latte",
+    description: "Espresso ve ipeksi süt köpüğü.",
+    price: 145,
+    category: "Kahveler",
+    available: true,
+  },
+  {
+    id: "americano",
+    name: "Americano",
+    description: "Dengeli ve yumuşak bir klasik.",
+    price: 110,
+    category: "Kahveler",
+    available: true,
+  },
+  {
+    id: "matcha",
+    name: "Iced Matcha Latte",
+    description: "Matcha, soğuk süt ve buz.",
+    price: 175,
+    category: "Soğuk İçecekler",
+    available: true,
+  },
+  {
+    id: "lemonade",
+    name: "Ev Yapımı Limonata",
+    description: "Taze limon, nane ve bol ferahlık.",
+    price: 120,
+    category: "Soğuk İçecekler",
+    available: true,
+  },
+  {
+    id: "san-sebastian",
+    name: "San Sebastian",
+    description: "Karamelize kabuk, yumuşacık bir kalp.",
+    price: 220,
+    category: "Tatlılar",
+    available: true,
+  },
+];
+export const exampleCafe: Cafe = {
+  id: "example",
+  createdAt: "",
+  name: "Mola Coffee",
+  slug: "mola-coffee",
+  subtitle: "İyi kahve. Güzel bir mola.",
+  location: "Kadıköy, İstanbul",
+  accent: "#245b46",
+  style: "classic",
+  published: false,
+  items: sampleItems,
+};
+export function slugify(s: string) {
+  return s
+    .toLocaleLowerCase("tr")
+    .replace(/ı/g, "i")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ş/g, "s")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 60);
+}
