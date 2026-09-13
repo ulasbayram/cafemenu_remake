@@ -24,7 +24,7 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{var t=localStorage.getItem('fincan-theme');document.documentElement.dataset.theme=t==='dark'||t==='light'?t:(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')}catch(e){}",
+              "for(var p of [['theme','fincan-theme'],['menuTheme','fincan-menu-theme']]){var t;try{t=localStorage.getItem(p[1])}catch(e){t=null}document.documentElement.dataset[p[0]]=t==='dark'||t==='light'?t:(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')}",
           }}
         />
       </head>

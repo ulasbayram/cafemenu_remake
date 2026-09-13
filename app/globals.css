@@ -4083,3 +4083,126 @@ dialog[open] {
     pointer-events: auto;
   }
 }
+
+/* Customer appearance is independent from the owner's dashboard preference. */
+body:has(.public-shell) {
+  background: #eceee9;
+}
+.public-shell {
+  --public-surface: #ffffff;
+  --public-text: #303c2f;
+  --public-muted: #63705e;
+  --public-border: #dfe4db;
+  color: var(--public-text);
+  color-scheme: light;
+  background: var(--public-surface);
+}
+.public-menu-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.public-theme-toggle {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--public-border);
+  border-radius: 50%;
+  color: var(--public-text);
+  background: var(--public-surface);
+  cursor: pointer;
+  transition:
+    background-color 180ms ease,
+    transform 180ms ease;
+}
+.public-theme-toggle:hover {
+  background: color-mix(in srgb, var(--public-text) 8%, var(--public-surface));
+}
+.public-theme-toggle:active {
+  transform: scale(0.94);
+}
+.public-shell .currency-bar {
+  color: var(--public-muted);
+  border-color: var(--public-border);
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.public-shell .currency-bar label {
+  color: var(--public-muted);
+}
+.public-shell .currency-bar select {
+  background: var(--public-surface);
+  color: var(--public-text);
+  border-color: var(--public-border);
+  min-height: 42px;
+}
+.public-shell .rate-disclaimer {
+  color: var(--public-muted);
+}
+html[data-menu-theme="dark"] body:has(.public-shell) {
+  background: #0d1210;
+}
+[data-menu-theme="dark"] .public-shell {
+  --public-surface: #171e1a;
+  --public-text: #e8eee9;
+  --public-muted: #b5c2b8;
+  --public-border: #36443b;
+  color-scheme: dark;
+}
+[data-menu-theme="dark"] .public-shell .customer-menu {
+  --menu-accent: color-mix(in srgb, var(--public-brand) 35%, white) !important;
+  --menu-background: color-mix(
+    in srgb,
+    var(--public-brand) 5%,
+    #151c18
+  ) !important;
+  --menu-text: #e8eee9 !important;
+  color-scheme: dark;
+}
+[data-menu-theme="dark"] .public-shell .menu-brand {
+  color: var(--menu-accent);
+}
+[data-menu-theme="dark"] .public-shell .theme-modern .menu-brand {
+  background: color-mix(in srgb, var(--public-brand) 25%, #151c18);
+  color: #f0f4f1;
+}
+[data-menu-theme="dark"]
+  .public-shell
+  :is(.menu-brand p, .menu-location, .menu-brand > small) {
+  opacity: 1;
+  color: #b5c2b8;
+}
+[data-menu-theme="dark"] .public-shell .menu-category button {
+  border-color: var(--public-border);
+  color: var(--public-muted);
+}
+[data-menu-theme="dark"] .public-shell .menu-category button.selected {
+  background: var(--menu-accent);
+  color: #142019;
+  border-color: var(--menu-accent);
+}
+[data-menu-theme="dark"] .public-shell .menu-products h2 > span {
+  background: #303e34;
+  color: #ccd8cf;
+}
+[data-menu-theme="dark"] .public-shell .menu-item {
+  border-color: var(--public-border);
+}
+[data-menu-theme="dark"] .public-shell .menu-item small {
+  color: var(--public-muted);
+}
+[data-menu-theme="dark"] .public-shell .menu-emblem.has-logo {
+  background: #f6f5f0;
+  border-radius: 12px;
+  padding: 7px;
+}
+[data-menu-theme="dark"] .public-shell .permanent-watermark {
+  background: #202c24 !important;
+  color: #b9ccb0 !important;
+  border-color: #36443b;
+}
+.public-shell :is(button, select):focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
