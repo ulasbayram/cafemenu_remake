@@ -75,6 +75,7 @@ function Modal({
   }, []);
   return (
     <dialog
+      aria-label={title}
       ref={ref}
       onCancel={close}
       onClick={(e) => {
@@ -94,11 +95,15 @@ function Modal({
 export default function Dashboard({
   signedIn,
   userName,
+  userEmail,
+  userCreatedAt,
   initialDate,
   initialTab = "overview",
 }: {
   signedIn: boolean;
   userName: string;
+  userEmail: string;
+  userCreatedAt: number;
   initialDate: string;
   initialTab?: Tab;
 }) {
@@ -107,6 +112,7 @@ export default function Dashboard({
   const menuToggleRef = useRef<HTMLButtonElement>(null);
   const sidebarBackRef = useRef<HTMLButtonElement>(null);
   const [cafeDetails, setCafeDetails] = useState<Cafe | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [tab, setTab] = useState<Tab>(initialTab),
     [cafes, setCafes] = useState<Cafe[]>([]),
     [stats, setStats] = useState<Stat[]>([]),
@@ -540,9 +546,15 @@ export default function Dashboard({
             <span className="live-label">
               <span /> Her şey bir fincanla başlar
             </span>
-            <span className="avatar small">
+            <button
+              type="button"
+              className="avatar small profile-trigger"
+              aria-label="Hesap bilgilerini görüntüle"
+              aria-haspopup="dialog"
+              onClick={() => setProfileOpen(true)}
+            >
               {userName.slice(0, 1).toUpperCase()}
-            </span>
+            </button>
           </div>
         </header>
         <main className="main-content" key={tab}>
@@ -1246,6 +1258,39 @@ export default function Dashboard({
           {toast}
         </div>
       )}
+      {profileOpen && (
+        <Modal title="Hesap bilgileri" close={() => setProfileOpen(false)}>
+          <div className="account-profile-summary">
+            <span className="avatar" aria-hidden="true">
+              {userName.slice(0, 1).toUpperCase()}
+            </span>
+            <strong>{userName}</strong>
+          </div>
+          <dl className="account-profile-details">
+            <div>
+              <dt>Hesap adı</dt>
+              <dd>{userName}</dd>
+            </div>
+            <div>
+              <dt>E-posta adresi</dt>
+              <dd>{userEmail}</dd>
+            </div>
+            <div>
+              <dt>Hesap oluşturulma tarihi</dt>
+              <dd>
+                <time dateTime={new Date(userCreatedAt).toISOString()}>
+                  {new Date(userCreatedAt).toLocaleDateString("tr-TR", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                    timeZone: "Europe/Istanbul",
+                  })}
+                </time>
+              </dd>
+            </div>
+          </dl>
+        </Modal>
+      )}
       {create && (
         <Modal
           title="Yeni kafenize merhaba."
@@ -1369,19 +1414,27 @@ export default function Dashboard({
               </small>
             </label>
             <p className="small-text muted">
-              Sosyal hesaplar ve web sitesi isteğe bağlıdır. Doldurulan
-              bağlantılar müşteri menüsünde görünür.
+              Sosyal hesaplar, WhatsApp sipariş hattı, web sitesi ve Google
+              yorum bağlantısı isteğe bağlıdır. Doldurulan bağlantılar müşteri
+              menüsünde görünür.
             </p>
             {socialFields.map((field) => (
               <label key={field.key}>
                 {field.label} <small className="muted">(İsteğe bağlı)</small>
                 <input
-                  type="text"
+                  type={field.key === "whatsapp" ? "tel" : "text"}
                   maxLength={500}
                   autoCapitalize="none"
                   spellCheck={false}
                   placeholder={field.placeholder}
-                  value={cafeDetails.socialLinks?.[field.key] || ""}
+                  value={
+                    field.key === "whatsapp"
+                      ? (cafeDetails.socialLinks?.whatsapp || "").replace(
+                          /^https:\/\/wa\.me\//,
+                          "+",
+                        )
+                      : cafeDetails.socialLinks?.[field.key] || ""
+                  }
                   onChange={(e) =>
                     setCafeDetails({
                       ...cafeDetails,
@@ -1392,6 +1445,19 @@ export default function Dashboard({
                     })
                   }
                 />
+                {field.key === "whatsapp" && (
+                  <small className="muted">
+                    WhatsApp kullanan numarayı ülke koduyla girin. Türkiye
+                    numaraları 05XX biçiminde de yazılabilir.
+                  </small>
+                )}
+                {field.key === "googleReviews" && (
+                  <small className="muted">
+                    Google işletme profilinizdeki yorum isteme bağlantısını
+                    yapıştırın. Menünün altında değerlendirme düğmesi olarak
+                    görünür.
+                  </small>
+                )}
               </label>
             ))}
             {error && (

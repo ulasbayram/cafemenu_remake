@@ -1,6 +1,12 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- The uploaded logo is already optimized locally; no image service is needed. */
-import { useEffect, useState, useCallback, type CSSProperties } from "react";
+import {
+  useEffect,
+  useState,
+  useCallback,
+  type CSSProperties,
+  type DragEvent,
+} from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -25,7 +31,7 @@ import {
   X,
   LoaderCircle,
 } from "lucide-react";
-import type { Cafe, Item } from "@/lib/menu";
+import { menuCategories, type Cafe, type Item } from "@/lib/menu";
 import MenuView, { type MenuBlock } from "../menu-view";
 import ThemeToggle from "../theme-toggle";
 import { prepareLogo } from "@/lib/logo";
@@ -59,12 +65,19 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
   const dirty = JSON.stringify(cafe) !== JSON.stringify(saved);
   const { theme: customerTheme } = useMenuTheme(cafe.defaultTheme);
   const [previewTheme, setPreviewTheme] = useState("auto");
-  const categories = [...new Set(cafe.items.map((i) => i.category))];
+  const categories = menuCategories(cafe);
+  const [newCategory, setNewCategory] = useState("");
+  const [categoryForm, setCategoryForm] = useState(false);
+  const [dropTarget, setDropTarget] = useState<{
+    kind: "item" | "category";
+    id: string;
+    position: "before" | "after" | "inside";
+  } | null>(null);
   const selection: MenuBlock =
     (requestedSelection.startsWith("item:") &&
       !cafe.items.some((i) => i.id === requestedSelection.slice(5))) ||
     (requestedSelection.startsWith("category:") &&
-      !cafe.items.some((i) => i.category === requestedSelection.slice(9)))
+      !categories.includes(requestedSelection.slice(9)))
       ? "theme"
       : requestedSelection;
   const item = selection.startsWith("item:")
@@ -158,6 +171,99 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
         items: cafe.items.map((i) => (i.id === item.id ? { ...i, ...p } : i)),
       });
   }
+  function addCategory() {
+    const name = newCategory.trim();
+    if (!name || name.length > 60) {
+      setError("Kategori adı 1–60 karakter olmalı.");
+      return;
+    }
+    if (
+      categories.some(
+        (c) => c.toLocaleLowerCase("tr") === name.toLocaleLowerCase("tr"),
+      )
+    ) {
+      setError("Bu kategori zaten var.");
+      return;
+    }
+    change({ categories: [...categories, name] });
+    setNewCategory("");
+    setCategoryForm(false);
+    select(`category:${name}`);
+  }
+  function dragOver(
+    e: DragEvent<HTMLElement>,
+    kind: "category" | "item",
+    id: string,
+  ) {
+    if (!dragged || (kind === "item" && dragged.kind !== "item")) return;
+    if (dragged.kind === kind && dragged.id === id) {
+      setDropTarget(null);
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDropTarget({
+      kind,
+      id,
+      position:
+        dragged.kind === "item" && kind === "category"
+          ? "inside"
+          : e.clientY < rect.top + rect.height / 2
+            ? "before"
+            : "after",
+    });
+  }
+  function finishDrop(e: DragEvent<HTMLElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (dragged && dropTarget) {
+      if (dragged.kind === "category" && dropTarget.kind === "category") {
+        const order = categories.filter((c) => c !== dragged.id);
+        order.splice(
+          order.indexOf(dropTarget.id) +
+            (dropTarget.position === "after" ? 1 : 0),
+          0,
+          dragged.id,
+        );
+        change({
+          categories: order,
+          items: order.flatMap((c) =>
+            cafe.items.filter((i) => i.category === c),
+          ),
+        });
+      } else if (dragged.kind === "item" && dropTarget.kind === "item") {
+        change({
+          categories,
+          items: reorderItems(
+            cafe.items,
+            dragged.id,
+            dropTarget.id,
+            "item",
+            dropTarget.position === "after" ? "after" : "before",
+          ),
+        });
+      } else if (dragged.kind === "item" && dropTarget.kind === "category") {
+        const moving = cafe.items.find((i) => i.id === dragged.id);
+        if (moving)
+          change({
+            categories,
+            items: [
+              ...cafe.items.filter((i) => i.id !== moving.id),
+              { ...moving, category: dropTarget.id },
+            ],
+          });
+      }
+    }
+    setDragged(null);
+    setDropTarget(null);
+  }
+  function marker(kind: "category" | "item", id: string) {
+    return dropTarget?.kind === kind && dropTarget.id === id
+      ? `drop-${dropTarget.position}`
+      : "";
+  }
   function addItem() {
     const next = {
       id: crypto.randomUUID(),
@@ -192,6 +298,7 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
       order[index],
     ];
     change({
+      categories: order,
       items: order.flatMap((cat) =>
         cafe.items.filter((i) => i.category === cat),
       ),
@@ -208,6 +315,7 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
       return;
     }
     change({
+      categories: categories.map((c) => (c === category ? name : c)),
       items: cafe.items.map((i) =>
         i.category === category ? { ...i, category: name } : i,
       ),
@@ -296,14 +404,21 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
         </div>
       </header>
       <div className="studio-layout">
-        <aside className="studio-layers" data-dragging={dragged?.kind}>
+        <aside
+          className="studio-layers"
+          data-dragging={dragged?.kind}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null))
+              setDropTarget(null);
+          }}
+        >
           <div className="studio-panel-title">
             <Layers size={17} />
             <h2>Menü blokları</h2>
           </div>
           <p>
-            Bir blok seçerek düzenleyin. Tutamaçtan sürükleyip hedefin önüne
-            bırakın.
+            Tutamaçtan sürükleyin; yeşil çizgi yerleşeceği konumu gösterir.
+            Ürünü kategori başlığına bırakarak da taşıyabilirsiniz.
           </p>
           <button
             className={`layer-row ${selection === "theme" ? "selected" : ""}`}
@@ -322,35 +437,24 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
           {categories.map((cat) => (
             <div className="layer-category" key={cat}>
               <button
-                className={`layer-row category ${selection === `category:${cat}` ? "selected" : ""}`}
+                className={`layer-row category ${selection === `category:${cat}` ? "selected" : ""} ${marker("category", cat)}`}
                 onClick={() => select(`category:${cat}`)}
-                onDragOver={(e) => {
-                  if (dragged?.kind === "category") e.preventDefault();
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  if (dragged?.kind === "category")
-                    change({
-                      items: reorderItems(
-                        cafe.items,
-                        dragged.id,
-                        cat,
-                        "category",
-                      ),
-                    });
-                  setDragged(null);
-                }}
+                onDragOver={(e) => dragOver(e, "category", cat)}
+                onDrop={finishDrop}
               >
                 <span
                   className="drag-handle"
                   draggable
-                  title="Kategoriyi sürükleyerek sırala"
+                  title="Kategoriyi taşı"
                   onDragStart={(e) => {
                     e.dataTransfer.setData("text/plain", cat);
                     e.dataTransfer.effectAllowed = "move";
                     setDragged({ kind: "category", id: cat });
                   }}
-                  onDragEnd={() => setDragged(null)}
+                  onDragEnd={() => {
+                    setDragged(null);
+                    setDropTarget(null);
+                  }}
                 >
                   <GripVertical size={15} />
                 </span>
@@ -363,37 +467,25 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
                 .filter((i) => i.category === cat)
                 .map((i) => (
                   <button
-                    className={`layer-row layer-product ${selection === `item:${i.id}` ? "selected" : ""}`}
                     key={i.id}
+                    className={`layer-row layer-product ${selection === `item:${i.id}` ? "selected" : ""} ${marker("item", i.id)}`}
                     onClick={() => select(`item:${i.id}`)}
-                    onDragOver={(e) => {
-                      if (dragged?.kind === "item") e.preventDefault();
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      if (dragged?.kind === "item")
-                        change({
-                          items: reorderItems(
-                            cafe.items,
-                            dragged.id,
-                            i.id,
-                            "item",
-                          ),
-                        });
-                      setDragged(null);
-                    }}
+                    onDragOver={(e) => dragOver(e, "item", i.id)}
+                    onDrop={finishDrop}
                   >
                     <span
                       className="drag-handle"
                       draggable
-                      title="Ürünü sürükleyerek sırala"
+                      title="Ürünü taşı"
                       onDragStart={(e) => {
                         e.dataTransfer.setData("text/plain", i.id);
                         e.dataTransfer.effectAllowed = "move";
                         setDragged({ kind: "item", id: i.id });
                       }}
-                      onDragEnd={() => setDragged(null)}
+                      onDragEnd={() => {
+                        setDragged(null);
+                        setDropTarget(null);
+                      }}
                     >
                       <GripVertical size={13} />
                     </span>
@@ -401,8 +493,28 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
                     {!i.available && <Eye size={11} />}
                   </button>
                 ))}
+              {!cafe.items.some((i) => i.category === cat) && (
+                <div
+                  className={`empty-category-drop ${marker("category", cat)}`}
+                  onDragOver={(e) => {
+                    if (dragged?.kind === "item") dragOver(e, "category", cat);
+                  }}
+                  onDrop={finishDrop}
+                >
+                  Ürünü buraya bırakın veya kategori ayarlarından ekleyin.
+                </div>
+              )}
             </div>
           ))}
+          <button
+            className="layer-add"
+            onClick={() => {
+              setCategoryForm(true);
+              setInspector(true);
+            }}
+          >
+            <Plus size={16} /> Kategori ekle
+          </button>
           <button className="layer-add" onClick={addItem}>
             <Plus size={16} /> Ürün ekle
           </button>
@@ -420,6 +532,15 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
         </aside>
         <main className={`studio-canvas ${wide ? "wide-preview" : ""}`}>
           <div className="canvas-toolbar">
+            <button
+              className="inspector-toggle"
+              onClick={() => {
+                setCategoryForm(true);
+                setInspector(true);
+              }}
+            >
+              <Plus size={16} /> Kategori ekle
+            </button>
             <span>
               <MousePointer2 size={14} /> Düzenlemek için bir bloğa tıklayın
             </span>
@@ -505,6 +626,37 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
             </button>
           </div>
           <div className="inspector-content">
+            {categoryForm && (
+              <form
+                className="category-create"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  addCategory();
+                }}
+              >
+                <label>
+                  Yeni kategori adı
+                  <input
+                    autoFocus
+                    required
+                    maxLength={60}
+                    placeholder="Örn. Soğuk içecekler"
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                  />
+                </label>
+                <button className="btn primary" type="submit">
+                  Kategori oluştur
+                </button>
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={() => setCategoryForm(false)}
+                >
+                  Vazgeç
+                </button>
+              </form>
+            )}
             {error && (
               <div className="error-banner" role="alert">
                 {error}

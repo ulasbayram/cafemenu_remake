@@ -25,6 +25,8 @@ export default async function Page({
       initialDate={new Date().toISOString()}
       signedIn={!!user}
       userName={user.name}
+      userEmail={user.email}
+      userCreatedAt={user.createdAt}
       initialTab={initialTab}
     />
   );

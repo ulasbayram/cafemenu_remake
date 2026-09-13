@@ -41,7 +41,12 @@ export function sessionCookie(req: Request, token: string, remove = false) {
   const secure = new URL(req.url).protocol === "https:";
   return `${secure ? "__Host-" : ""}fincan_session=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${remove ? 0 : 14 * 86400}${secure ? "; Secure" : ""}`;
 }
-export type AppUser = { id: string; email: string; name: string };
+export type AppUser = {
+  id: string;
+  email: string;
+  name: string;
+  createdAt: number;
+};
 export async function currentUser(): Promise<AppUser | null> {
   const jar = await cookies();
   const h = await headers();
@@ -52,7 +57,7 @@ export async function currentUser(): Promise<AppUser | null> {
   if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
   const r = await authDb()
     .prepare(
-      "SELECT u.id,u.email,u.name FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?",
+      "SELECT u.id,u.email,u.name,u.created_at AS createdAt FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?",
     )
     .bind(digest(token), Date.now())
     .first<AppUser>();

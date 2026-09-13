@@ -49,3 +49,10 @@ assert.equal(history.past.length, 60);
 console.log(
   "PASS: reorder, cross-category move, undo/redo, deletion recovery, logo size, branch reset, history limit",
 );
+assert.deepEqual(reorderItems(items,'a','b','item','after').map(i=>i.id), ['b','a','c']);
+assert.deepEqual(reorderItems(items,'a','c','item','after').map(i=>[i.id,i.category]), [['b','Coffee'],['c','Dessert'],['a','Dessert']]);
+let emptyCategories = {past:[], present:{categories:[],items:[]}, future:[]};
+emptyCategories = advanceHistory(emptyCategories, {categories:['Cold drinks'],items:[]});
+assert.deepEqual(travelHistory(emptyCategories,'undo').present.categories, []);
+assert.deepEqual(travelHistory(travelHistory(emptyCategories,'undo'),'redo').present.categories, ['Cold drinks']);
+console.log('PASS: drop after last item, cross-category end drop, empty category undo/redo');

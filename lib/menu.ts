@@ -65,8 +65,19 @@ export const cafeSchema = z.object({
   scale: z.number().min(0.9).max(1.3).optional(),
   published: z.boolean(),
   items: z.array(itemSchema).max(1000),
+  categories: z.array(z.string().trim().min(1).max(60)).max(1000).optional(),
 });
 export type CafeData = z.infer<typeof cafeSchema>;
+export function menuCategories(
+  cafe: Pick<CafeData, "items" | "categories">,
+): string[] {
+  return [
+    ...new Set([
+      ...(cafe.categories || []),
+      ...cafe.items.map((i) => i.category),
+    ]),
+  ];
+}
 export type Cafe = CafeData & { id: string; createdAt: string };
 export type Item = z.infer<typeof itemSchema>;
 export const sampleItems: Item[] = [

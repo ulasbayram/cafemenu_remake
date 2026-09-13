@@ -4,6 +4,7 @@ export function reorderItems(
   source: string,
   target: string,
   kind: "item" | "category",
+  position: "before" | "after" = "before",
 ): Item[] {
   if (kind === "category") {
     const categories = [...new Set(items.map((i) => i.category))];
@@ -22,7 +23,7 @@ export function reorderItems(
   if (!from || !to || from.id === to.id) return items;
   const next = items.filter((i) => i.id !== source);
   next.splice(
-    next.findIndex((i) => i.id === target),
+    next.findIndex((i) => i.id === target) + (position === "after" ? 1 : 0),
     0,
     { ...from, category: to.category },
   );

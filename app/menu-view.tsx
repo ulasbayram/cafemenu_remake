@@ -9,9 +9,12 @@ import {
   Camera,
   Play,
   Globe,
+  Star,
+  ExternalLink,
+  MessageCircle,
 } from "lucide-react";
 import { socialFields, normalizeSocialLink } from "@/lib/social-links";
-import type { Cafe, Item } from "@/lib/menu";
+import { menuCategories, type Cafe, type Item } from "@/lib/menu";
 import { logoSurfaceFromPixels } from "@/lib/logo";
 export type Rates = {
   USD: number;
@@ -38,13 +41,10 @@ export default function MenuView({
   onEdit?: (item: Item) => void;
 }) {
   const editable = !!(onSelectBlock || onEdit),
-    categories = [
-      ...new Set(
-        cafe.items
-          .filter((i) => editable || i.available)
-          .map((i) => i.category),
-      ),
-    ];
+    categories = menuCategories(cafe).filter(
+      (c) =>
+        editable || cafe.items.some((i) => i.category === c && i.available),
+    );
   const [selected, setSelected] = useState("Tümü");
   const [detectedSurface, setDetectedSurface] = useState<{
     logo: string;
@@ -87,7 +87,7 @@ export default function MenuView({
         }
       : {};
   const ItemTag = editable ? "button" : "div";
-  const socialLinks = socialFields.flatMap((field) => {
+  const allLinks = socialFields.flatMap((field) => {
     try {
       const href = normalizeSocialLink(
         cafe.socialLinks?.[field.key] || "",
@@ -98,6 +98,8 @@ export default function MenuView({
       return [];
     }
   });
+  const socialLinks = allLinks.filter((link) => link.key !== "googleReviews");
+  const reviewLink = allLinks.find((link) => link.key === "googleReviews");
   return (
     <div
       ref={root}
@@ -190,8 +192,10 @@ export default function MenuView({
                 <Play size={16} />
               ) : link.key === "website" ? (
                 <Globe size={16} />
+              ) : link.key === "whatsapp" ? (
+                <MessageCircle size={16} />
               ) : null}
-              {link.label}
+              {link.key === "whatsapp" ? "WhatsApp’tan sipariş" : link.label}
             </a>
           ))}
         </nav>
@@ -292,6 +296,25 @@ export default function MenuView({
           </div>
         )}
       </div>
+      {reviewLink && (
+        <section
+          className="menu-review-invite"
+          aria-label="Kafeyi değerlendirin"
+        >
+          <Star size={22} aria-hidden="true" />
+          <strong>Deneyiminizi bizimle paylaşın</strong>
+          <p>Google’da yorum bırakarak kafemizi değerlendirebilirsiniz.</p>
+          <a
+            href={reviewLink.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`${cafe.name} için Google’da değerlendirme yap (yeni sekmede açılır)`}
+          >
+            Google’da değerlendirin{" "}
+            <ExternalLink size={15} aria-hidden="true" />
+          </a>
+        </section>
+      )}
       <footer
         className={`menu-footer permanent-watermark ${blockClass("footer")}`}
         {...selectProps("footer", "Fincan imzası")}
