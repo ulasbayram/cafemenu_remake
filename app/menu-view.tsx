@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- Logos are already resized locally and stored as bounded data URLs. */
 import { useState, useEffect, useRef, type CSSProperties } from "react";
 import { Coffee, MapPin, Leaf, LockKeyhole } from "lucide-react";
 import type { Cafe, Item } from "@/lib/menu";
@@ -96,8 +97,12 @@ export default function MenuView({
         {...selectProps("header", "Başlık")}
       >
         {onSelectBlock && <span className="block-label">Başlık</span>}
-        <span className="menu-emblem">
-          <Coffee size={30} strokeWidth={1.4} />
+        <span className={`menu-emblem ${cafe.logo ? "has-logo" : ""}`}>
+          {cafe.logo ? (
+            <img src={cafe.logo} alt={`${cafe.name} logosu`} />
+          ) : (
+            <Coffee size={30} strokeWidth={1.4} />
+          )}
         </span>
         <small>COFFEE & GOOD MOMENTS</small>
         <h1>{cafe.name}</h1>

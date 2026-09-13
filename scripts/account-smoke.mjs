@@ -140,7 +140,41 @@ assert.equal(
   ).status,
   400,
 );
+const logo =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5N8AAAAASUVORK5CYII=";
+const branded = await req(`/api/cafes/${id}`, {
+  method: "PUT",
+  cookie: a.cookie,
+  body: {
+    ...cafe,
+    logo,
+    logoPalette: {
+      accent: "#56382a",
+      background: "#faf7f4",
+      textColor: "#18110c",
+    },
+  },
+});
+assert.equal(branded.status, 200);
+assert.equal(branded.data.logo, logo);
+for (const invalidLogo of [
+  "https://example.com/logo.svg",
+  "data:image/svg+xml;base64,PHN2Zz4=",
+  "data:image/png;base64," + "A".repeat(120001),
+]) {
+  assert.equal(
+    (
+      await req(`/api/cafes/${id}`, {
+        method: "PUT",
+        cookie: a.cookie,
+        body: { ...cafe, logo: invalidLogo },
+      })
+    ).status,
+    400,
+  );
+}
 const page = await req("/" + slug);
+assert.ok(page.text.includes(logo), "Saved logo renders on public menu");
 assert.equal(page.status, 200);
 assert.ok(
   page.text.includes("fincan ile hazırlandı"),

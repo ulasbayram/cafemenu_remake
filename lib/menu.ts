@@ -28,6 +28,20 @@ export const cafeSchema = z.object({
     ),
   subtitle: z.string().max(150),
   location: z.string().max(150),
+  logo: z
+    .string()
+    .max(120000)
+    .regex(/^data:image\/(?:webp|png);base64,[A-Za-z0-9+/]+={0,2}$/)
+    .nullable()
+    .optional(),
+  logoPalette: z
+    .object({
+      accent: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+      background: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+      textColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+    })
+    .nullable()
+    .optional(),
   accent: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   style: z.enum(["classic", "modern", "minimal"]),
   background: z

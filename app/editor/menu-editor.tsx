@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- The uploaded logo is already optimized locally; no image service is needed. */
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -26,12 +27,14 @@ import {
 import type { Cafe, Item } from "@/lib/menu";
 import MenuView, { type MenuBlock } from "../menu-view";
 import ThemeToggle from "../theme-toggle";
+import { prepareLogo } from "@/lib/logo";
 export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
   const router = useRouter();
   const [cafe, setCafe] = useState(initialCafe),
     [saved, setSaved] = useState(initialCafe),
     [selection, setSelection] = useState<MenuBlock>("theme"),
     [busy, setBusy] = useState(false),
+    [logoBusy, setLogoBusy] = useState(false),
     [error, setError] = useState(""),
     [toast, setToast] = useState(""),
     [wide, setWide] = useState(false),
@@ -67,6 +70,22 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
   }, []);
   function change(p: Partial<Cafe>) {
     setCafe((c) => ({ ...c, ...p }));
+  }
+  async function uploadLogo(file?: File) {
+    if (!file) return;
+    setLogoBusy(true);
+    setError("");
+    try {
+      const { logo, palette } = await prepareLogo(file);
+      change({ logo, logoPalette: palette, ...palette });
+      setToast(
+        "Logo eklendi; logoya uygun renkler uygulandı. Kaydetmeyi unutmayın.",
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Logo okunamadı.");
+    } finally {
+      setLogoBusy(false);
+    }
   }
   function changeItem(p: Partial<Item>) {
     if (item)
@@ -183,7 +202,7 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
           <ThemeToggle />
           <button
             className="btn studio-reset"
-            disabled={!dirty || busy}
+            disabled={!dirty || busy || logoBusy}
             onClick={() => {
               if (
                 window.confirm(
@@ -199,7 +218,7 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
           </button>
           <button
             className="btn primary"
-            disabled={!dirty || busy}
+            disabled={!dirty || busy || logoBusy}
             onClick={save}
           >
             {busy ? (
@@ -348,6 +367,34 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
                 {error}
               </div>
             )}
+            {(selection === "theme" || selection === "header") &&
+              cafe.logoPalette && (
+                <div className="logo-palette">
+                  <strong>Logonuzdan önerilen renkler</strong>
+                  <div className="logo-swatches">
+                    {Object.entries(cafe.logoPalette).map(([key, color]) => (
+                      <span
+                        key={key}
+                        style={{ background: color }}
+                        title={color}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => change({ ...cafe.logoPalette })}
+                  >
+                    {cafe.accent === cafe.logoPalette.accent &&
+                    cafe.background === cafe.logoPalette.background &&
+                    cafe.textColor === cafe.logoPalette.textColor
+                      ? "✓ Önerilen renkler seçili"
+                      : "Önerilen renkleri uygula"}
+                  </button>
+                  <p className="inspector-hint">
+                    Renkleri Genel görünüm bölümünden değiştirebilirsiniz.
+                  </p>
+                </div>
+              )}
             {selection === "theme" && (
               <>
                 <span className="inspector-kicker">MENÜNÜZÜN KARAKTERİ</span>
@@ -443,6 +490,41 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
             {selection === "header" && (
               <>
                 <span className="inspector-kicker">İLK KARŞILAMA</span>
+                <div className="logo-controls">
+                  <label>
+                    Kafe logosu
+                    {cafe.logo && (
+                      <img
+                        className="logo-thumbnail"
+                        src={cafe.logo}
+                        alt="Yüklenen kafe logosu"
+                      />
+                    )}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      disabled={logoBusy}
+                      onChange={(e) => {
+                        void uploadLogo(e.target.files?.[0]);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                  <p className="inspector-hint">
+                    {logoBusy
+                      ? "Logo hazırlanıyor…"
+                      : "PNG, JPG veya WebP · En fazla 5 MB. Logonuzdan renkler otomatik seçilir; Kaydet ile yayınlanır."}
+                  </p>
+                  {cafe.logo && (
+                    <button
+                      className="btn btn-secondary"
+                      disabled={logoBusy}
+                      onClick={() => change({ logo: null, logoPalette: null })}
+                    >
+                      Varsayılan simgeye dön
+                    </button>
+                  )}
+                </div>
                 <label>
                   Menü başlığı
                   <input

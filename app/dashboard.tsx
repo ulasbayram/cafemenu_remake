@@ -21,6 +21,7 @@ import {
   Eye,
   QrCode,
   ArrowRight,
+  ArrowLeft,
   Download,
   Check,
   Palette,
@@ -101,6 +102,9 @@ export default function Dashboard({
   initialTab?: Tab;
 }) {
   const router = useRouter();
+  const sidebarRef = useRef<HTMLElement>(null);
+  const menuToggleRef = useRef<HTMLButtonElement>(null);
+  const sidebarBackRef = useRef<HTMLButtonElement>(null);
   const [cafeDetails, setCafeDetails] = useState<Cafe | null>(null);
   const [tab, setTab] = useState<Tab>(initialTab),
     [cafes, setCafes] = useState<Cafe[]>([]),
@@ -195,6 +199,46 @@ export default function Dashboard({
       active = false;
     };
   }, [qr]);
+
+  useEffect(() => {
+    if (!mobile) return;
+    const menuToggle = menuToggleRef.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    sidebarBackRef.current?.focus();
+    const desktop = window.matchMedia("(min-width: 721px)");
+    const onResize = () => {
+      if (desktop.matches) setMobile(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMobile(false);
+      }
+      if (event.key !== "Tab") return;
+      const controls = sidebarRef.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not(:disabled), [tabindex="0"]',
+      );
+      if (!controls?.length) return;
+      const first = controls[0],
+        last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    desktop.addEventListener("change", onResize);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      desktop.removeEventListener("change", onResize);
+      document.removeEventListener("keydown", onKey);
+      requestAnimationFrame(() => menuToggle?.focus());
+    };
+  }, [mobile]);
 
   function navigate(t: Tab) {
     setTab(t);
@@ -379,7 +423,26 @@ export default function Dashboard({
   };
   return (
     <div className="app-shell">
-      <aside className={`sidebar ${mobile ? "mobile-open" : ""}`}>
+      <button
+        className={`sidebar-backdrop ${mobile ? "visible" : ""}`}
+        tabIndex={-1}
+        aria-hidden="true"
+        onClick={() => setMobile(false)}
+      />
+      <aside
+        id="dashboard-sidebar"
+        ref={sidebarRef}
+        aria-label="Ana gezinme"
+        className={`sidebar ${mobile ? "mobile-open" : ""}`}
+      >
+        <button
+          ref={sidebarBackRef}
+          className="sidebar-back"
+          onClick={() => setMobile(false)}
+          aria-label="Geri, gezinmeyi kapat"
+        >
+          <ArrowLeft size={18} /> Geri
+        </button>
         <Link className="brand" href="/">
           <span>
             <Coffee size={24} />
@@ -454,13 +517,16 @@ export default function Dashboard({
           </div>
         </div>
       </aside>
-      <div className="workspace">
+      <div className="workspace" inert={mobile}>
         <header className="topbar">
           <div className="breadcrumb">
             <button
               className="icon-btn mobile-toggle"
-              onClick={() => setMobile(!mobile)}
+              ref={menuToggleRef}
+              onClick={() => setMobile(true)}
               aria-label="Gezinmeyi aç"
+              aria-expanded={mobile}
+              aria-controls="dashboard-sidebar"
             >
               <Menu size={21} />
             </button>
@@ -478,7 +544,7 @@ export default function Dashboard({
             </span>
           </div>
         </header>
-        <main className="main-content">
+        <main className="main-content" key={tab}>
           {error && (
             <div className="error-banner" role="alert">
               <Info size={18} />

@@ -54,3 +54,11 @@ QR üretimi, fotoğraf OCR ve Frankfurter verisi işlem başına ücret gerektir
 Cloudflare ücretsiz katmanı düşük trafiğe uygundur ancak özellikle güvenli parola hashleme CPU tüketir. Gerçek barındırma/Sites planı ve trafik limitleri kontrol edilmelidir; sıfır fatura garantisi verilmez. Özel alan adı ayrıca satın alınır/bağlanır ve henüz bağlı değildir. Referanslar: [Workers fiyatları](https://developers.cloudflare.com/workers/platform/pricing/), [D1 fiyatları](https://developers.cloudflare.com/d1/platform/pricing/), [Frankfurter](https://frankfurter.dev/), [OWASP parola saklama](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html).
 
 Site kimliği `.openai/hosting.json` içindedir. Migration dosyaları `drizzle/` altında sürümlenir. Müşterilerin anonim menü erişimi için Site'ın erişim politikasının herkese açık olarak ayarlanması gerekir. Abonelik/ödeme ve generatif AI entegrasyonu yoktur. Ziyaretler yaklaşık ölçümdür; farklı cihazlar, veri temizleme ve botlar sayıları etkileyebilir.
+
+## Kafe logosu ve önerilen palet
+
+Editörde Başlık bloğundan PNG, JPG veya WebP logo seçilebilir (en fazla 5 MB). Görsel tarayıcıda en fazla 256 piksele küçültülür, sıkıştırılır ve en fazla 120.000 karakterlik bir veri URL'si olarak mevcut kafe kaydıyla D1'e kaydedilir. Ek depolama veya AI servisi kullanılmaz. Kaydetmeden ziyaretçi menüsü değişmez; geri alma logo ve paleti de geri alır.
+
+Şeffaf ve beyaza yakın arka planlar renk analizinden çıkarılır. Baskın renkten okunabilir vurgu, açık arka plan ve koyu metin rengi oluşturularak otomatik uygulanır. Genel görünümde elle değiştirilebilir veya önerilen palet yeniden uygulanabilir. Varsayılan simgeye dönüş renkleri korur; zorunlu Fincan watermark'ını etkilemez.
+
+`node scripts/logo-test.mjs` renk analizi ve kontrastı doğrular. Hesap testi ayrıca logonun kaydedilmesini, ziyaretçi sayfasında görünmesini ve desteklenmeyen/aşırı büyük logo verilerinin reddini kontrol eder.

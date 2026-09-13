@@ -2944,9 +2944,9 @@ dialog::backdrop {
   outline-color: #729974;
 }
 .selectable-block.block-selected {
-  outline: 2px solid #648dff;
+  outline: 2px solid #477b5c;
   outline-offset: -2px;
-  box-shadow: 0 0 0 4px #648dff0b;
+  box-shadow: 0 0 0 4px #477b5c18;
 }
 .block-label {
   position: absolute !important;
@@ -2955,7 +2955,7 @@ dialog::backdrop {
   right: 0;
   width: auto !important;
   height: auto !important;
-  background: #648dff !important;
+  background: #477b5c !important;
   color: white !important;
   padding: 2px 6px !important;
   border-radius: 0 0 0 4px !important;
@@ -3895,5 +3895,191 @@ html[data-theme="dark"] body {
     padding-bottom: 55dvh;
     scroll-padding-bottom: 52dvh;
     scroll-padding-top: 15px;
+  }
+}
+.menu-emblem.has-logo {
+  width: 104px;
+  height: 82px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.menu-emblem.has-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.logo-thumbnail {
+  width: 100%;
+  height: 90px;
+  object-fit: contain;
+  background: #f6f5f0;
+  border-radius: 12px;
+  padding: 8px;
+}
+.logo-controls input[type="file"] {
+  width: 100%;
+  font-size: 11px;
+  padding: 10px 0;
+}
+.logo-controls input::file-selector-button {
+  border: 1px solid #477b5c55;
+  background: #477b5c15;
+  color: inherit;
+  border-radius: 7px;
+  padding: 8px;
+  margin-right: 8px;
+  cursor: pointer;
+}
+.logo-palette {
+  border: 1px solid #477b5c44;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 20px;
+}
+.logo-palette strong {
+  font-size: 12px;
+}
+.logo-swatches {
+  display: flex;
+  gap: 7px;
+  margin: 12px 0;
+}
+.logo-swatches span {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid #8884;
+}
+.logo-palette .btn {
+  width: 100%;
+  font-size: 11px;
+}
+
+/* Subtle dashboard motion; the global reduced-motion rule disables it. */
+@keyframes surface-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes chart-grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+.app-shell .main-content {
+  animation: surface-enter 280ms ease-out;
+}
+.app-shell :is(.stat-card, .cafe-card, .menu-table-row) {
+  animation: surface-enter 380ms ease-out backwards;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+.app-shell :is(.stat-card, .cafe-card):nth-child(2) {
+  animation-delay: 45ms;
+}
+.app-shell :is(.stat-card, .cafe-card):nth-child(3) {
+  animation-delay: 90ms;
+}
+.app-shell :is(.stat-card, .cafe-card):nth-child(4) {
+  animation-delay: 135ms;
+}
+.app-shell .bar-slot .bar {
+  transform-origin: bottom;
+  animation: chart-grow 600ms cubic-bezier(0.2, 0.7, 0.3, 1) backwards;
+  transition: height 350ms ease;
+}
+.app-shell :is(.btn, .icon-btn, .sidebar nav button, .sidebar-back) {
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    transform 150ms ease,
+    box-shadow 180ms ease;
+}
+.app-shell :is(.btn, .icon-btn, .sidebar-back):active:not(:disabled) {
+  transform: scale(0.97);
+}
+dialog[open] {
+  animation: surface-enter 220ms ease-out;
+}
+@media (hover: hover) {
+  .app-shell :is(.stat-card, .cafe-card):hover {
+    transform: translateY(-3px);
+    box-shadow: 0 9px 24px #183b2310;
+  }
+  .app-shell .sidebar nav button:hover {
+    transform: translateX(3px);
+  }
+}
+.sidebar-back,
+.sidebar-backdrop {
+  display: none;
+}
+@media (max-width: 720px) {
+  .sidebar,
+  .sidebar.mobile-open {
+    display: flex;
+    width: min(280px, calc(100vw - 48px));
+    padding-top: 18px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    transition:
+      transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      visibility 240ms;
+  }
+  .sidebar {
+    transform: translateX(-100%);
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .sidebar.mobile-open {
+    transform: translateX(0);
+    visibility: visible;
+    pointer-events: auto;
+  }
+  .sidebar-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    align-self: flex-start;
+    flex-shrink: 0;
+    min-height: 42px;
+    margin: 0 0 18px 8px;
+    padding: 8px 13px;
+    border: 1px solid #477b5c44;
+    border-radius: 10px;
+    background: #477b5c14;
+    color: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 39;
+    border: 0;
+    background: #10261bc0;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      opacity 240ms ease,
+      visibility 240ms;
+  }
+  .sidebar-backdrop.visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
   }
 }
