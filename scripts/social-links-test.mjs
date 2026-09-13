@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import { normalizeSocialLink, socialLinksSchema } from '../lib/social-links.ts';
+assert.equal(normalizeSocialLink('@mola.coffee','instagram'), 'https://instagram.com/mola.coffee');
+assert.equal(normalizeSocialLink('@mola','youtube'), 'https://youtube.com/@mola');
+assert.equal(normalizeSocialLink('mola','x'), 'https://x.com/mola');
+assert.equal(normalizeSocialLink('example.com','website'), 'https://example.com/');
+assert.equal(normalizeSocialLink('   ','instagram'), '');
+assert.ok(socialLinksSchema.safeParse({}).success);
+for (const address of ['javascript:alert(1)', 'data:text/html,hi', 'https://user:pass@example.com']) assert.throws(()=>normalizeSocialLink(address,'website'));
+assert.throws(()=>normalizeSocialLink('https://instagram.com.evil.test/account','instagram'));
+assert.ok(!socialLinksSchema.safeParse({website:'javascript:alert(1)'}).success);
+console.log('PASS: optional fields, handle/URL normalization, protocol and platform validation');

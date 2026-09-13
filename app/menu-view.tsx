@@ -1,8 +1,18 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- Logos are already resized locally and stored as bounded data URLs. */
 import { useState, useEffect, useRef, type CSSProperties } from "react";
-import { Coffee, MapPin, Leaf, LockKeyhole } from "lucide-react";
+import {
+  Coffee,
+  MapPin,
+  Leaf,
+  LockKeyhole,
+  Camera,
+  Play,
+  Globe,
+} from "lucide-react";
+import { socialFields, normalizeSocialLink } from "@/lib/social-links";
 import type { Cafe, Item } from "@/lib/menu";
+import { logoSurfaceFromPixels } from "@/lib/logo";
 export type Rates = {
   USD: number;
   EUR: number;
@@ -36,6 +46,10 @@ export default function MenuView({
       ),
     ];
   const [selected, setSelected] = useState("Tümü");
+  const [detectedSurface, setDetectedSurface] = useState<{
+    logo: string;
+    color: string | null;
+  } | null>(null);
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!onSelectBlock || !selectedBlock || selectedBlock === "theme") return;
@@ -73,6 +87,17 @@ export default function MenuView({
         }
       : {};
   const ItemTag = editable ? "button" : "div";
+  const socialLinks = socialFields.flatMap((field) => {
+    try {
+      const href = normalizeSocialLink(
+        cafe.socialLinks?.[field.key] || "",
+        field.key,
+      );
+      return href ? [{ ...field, href }] : [];
+    } catch {
+      return [];
+    }
+  });
   return (
     <div
       ref={root}
@@ -80,6 +105,12 @@ export default function MenuView({
       style={
         {
           "--menu-accent": cafe.accent,
+          "--logo-dark-surface":
+            cafe.logoSurface ||
+            (detectedSurface?.logo === cafe.logo
+              ? detectedSurface?.color
+              : null) ||
+            "#141414",
           "--menu-background": cafe.background || "#fdfcf7",
           "--menu-text": cafe.textColor || "#303c2f",
           "--menu-font":
@@ -97,9 +128,35 @@ export default function MenuView({
         {...selectProps("header", "Başlık")}
       >
         {onSelectBlock && <span className="block-label">Başlık</span>}
-        <span className={`menu-emblem ${cafe.logo ? "has-logo" : ""}`}>
+        <span
+          className={`menu-emblem ${cafe.logo ? "has-logo" : ""} logo-${cafe.logoSize || "medium"}`}
+        >
           {cafe.logo ? (
-            <img src={cafe.logo} alt={`${cafe.name} logosu`} />
+            <img
+              src={cafe.logo}
+              alt={`${cafe.name} logosu`}
+              onLoad={(e) => {
+                if (cafe.logoSurface || !cafe.logo) return;
+                const canvas = document.createElement("canvas");
+                canvas.width = 64;
+                canvas.height = 64;
+                const ctx = canvas.getContext("2d");
+                if (!ctx) return;
+                try {
+                  ctx.drawImage(e.currentTarget, 0, 0, 64, 64);
+                  setDetectedSurface({
+                    logo: cafe.logo,
+                    color: logoSurfaceFromPixels(
+                      ctx.getImageData(0, 0, 64, 64).data,
+                      64,
+                      64,
+                    ),
+                  });
+                } catch {
+                  /* Keep the neutral surface if the image cannot be sampled. */
+                }
+              }}
+            />
           ) : (
             <Coffee size={30} strokeWidth={1.4} />
           )}
@@ -114,6 +171,31 @@ export default function MenuView({
           </span>
         )}
       </div>
+      {socialLinks.length > 0 && (
+        <nav
+          className="menu-social-links"
+          aria-label="Kafenin sosyal hesapları ve web sitesi"
+        >
+          {socialLinks.map((link) => (
+            <a
+              key={link.key}
+              href={link.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`${cafe.name} · ${link.label} (yeni sekmede açılır)`}
+            >
+              {link.key === "instagram" ? (
+                <Camera size={16} />
+              ) : link.key === "youtube" ? (
+                <Play size={16} />
+              ) : link.key === "website" ? (
+                <Globe size={16} />
+              ) : null}
+              {link.label}
+            </a>
+          ))}
+        </nav>
+      )}
       <div className="menu-category">
         <button
           className={active === "Tümü" ? "selected" : ""}

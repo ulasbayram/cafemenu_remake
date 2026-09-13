@@ -42,6 +42,7 @@ import {
 import { Cafe, Item, slugify, sampleItems } from "@/lib/menu";
 import { type Rates } from "./menu-view";
 import { parseMenu } from "@/lib/ocr";
+import { socialFields } from "@/lib/social-links";
 type Tab = "overview" | "cafes" | "menus" | "scan" | "stats" | "settings";
 type Stat = { cafe: string; day: string; hour: number; count: number };
 async function api<T>(path: string, body?: unknown, method = "POST") {
@@ -858,7 +859,15 @@ export default function Dashboard({
                           className="cafe-card-cover"
                           style={{ background: c.accent }}
                         >
-                          <Coffee size={36} strokeWidth={1.3} />
+                          {c.logo ? (
+                            <img
+                              className="cafe-card-logo"
+                              src={c.logo}
+                              alt={`${c.name} logosu`}
+                            />
+                          ) : (
+                            <Coffee size={36} strokeWidth={1.3} />
+                          )}
                           <span
                             className={`cafe-status ${c.published ? "published" : ""}`}
                           >
@@ -1360,8 +1369,31 @@ export default function Dashboard({
               </small>
             </label>
             <p className="small-text muted">
-              Ürünleri ve tasarımı Menü yönetimi bölümünden düzenleyebilirsiniz.
+              Sosyal hesaplar ve web sitesi isteğe bağlıdır. Doldurulan
+              bağlantılar müşteri menüsünde görünür.
             </p>
+            {socialFields.map((field) => (
+              <label key={field.key}>
+                {field.label} <small className="muted">(İsteğe bağlı)</small>
+                <input
+                  type="text"
+                  maxLength={500}
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  placeholder={field.placeholder}
+                  value={cafeDetails.socialLinks?.[field.key] || ""}
+                  onChange={(e) =>
+                    setCafeDetails({
+                      ...cafeDetails,
+                      socialLinks: {
+                        ...cafeDetails.socialLinks,
+                        [field.key]: e.target.value,
+                      },
+                    })
+                  }
+                />
+              </label>
+            ))}
             {error && (
               <p className="form-error" role="alert">
                 {error}

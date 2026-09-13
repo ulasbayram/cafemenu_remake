@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- The uploaded logo is already optimized locally; no image service is needed. */
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -10,7 +10,6 @@ import {
   Type,
   Layers,
   ChevronRight,
-  Package,
   LockKeyhole,
   MoveUp,
   MoveDown,
@@ -21,6 +20,8 @@ import {
   Check,
   Eye,
   Undo2,
+  Redo2,
+  GripVertical,
   X,
   LoaderCircle,
 } from "lucide-react";
@@ -28,11 +29,25 @@ import type { Cafe, Item } from "@/lib/menu";
 import MenuView, { type MenuBlock } from "../menu-view";
 import ThemeToggle from "../theme-toggle";
 import { prepareLogo } from "@/lib/logo";
+import { useMenuTheme } from "../use-menu-theme";
+import { useHistory } from "./use-history";
+import { reorderItems } from "@/lib/editor-state";
 export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
   const router = useRouter();
-  const [cafe, setCafe] = useState(initialCafe),
-    [saved, setSaved] = useState(initialCafe),
-    [selection, setSelection] = useState<MenuBlock>("theme"),
+  const {
+    value: cafe,
+    update: setCafe,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+  } = useHistory(initialCafe);
+  const [dragged, setDragged] = useState<{
+    kind: "category" | "item";
+    id: string;
+  } | null>(null);
+  const [saved, setSaved] = useState(initialCafe),
+    [requestedSelection, setSelection] = useState<MenuBlock>("theme"),
     [busy, setBusy] = useState(false),
     [logoBusy, setLogoBusy] = useState(false),
     [error, setError] = useState(""),
@@ -42,11 +57,42 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
     [categoryName, setCategoryName] = useState(""),
     [deleteId, setDeleteId] = useState<string | null>(null);
   const dirty = JSON.stringify(cafe) !== JSON.stringify(saved);
+  const { theme: customerTheme } = useMenuTheme(cafe.defaultTheme);
+  const [previewTheme, setPreviewTheme] = useState("auto");
   const categories = [...new Set(cafe.items.map((i) => i.category))];
+  const selection: MenuBlock =
+    (requestedSelection.startsWith("item:") &&
+      !cafe.items.some((i) => i.id === requestedSelection.slice(5))) ||
+    (requestedSelection.startsWith("category:") &&
+      !cafe.items.some((i) => i.category === requestedSelection.slice(9)))
+      ? "theme"
+      : requestedSelection;
   const item = selection.startsWith("item:")
     ? cafe.items.find((i) => i.id === selection.slice(5))
     : undefined;
   const category = selection.startsWith("category:") ? selection.slice(9) : "";
+  useEffect(() => {
+    const keydown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        busy ||
+        logoBusy ||
+        target.closest('input, textarea, select, [contenteditable="true"]') ||
+        !(e.ctrlKey || e.metaKey)
+      )
+        return;
+      if (e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+      } else if (e.key.toLowerCase() === "y") {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener("keydown", keydown);
+    return () => window.removeEventListener("keydown", keydown);
+  }, [busy, logoBusy, undo, redo]);
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
       if (dirty) {
@@ -76,13 +122,32 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
     setLogoBusy(true);
     setError("");
     try {
-      const { logo, palette } = await prepareLogo(file);
-      change({ logo, logoPalette: palette, ...palette });
+      const { logo, palette, defaultTheme, logoSurface } =
+        await prepareLogo(file);
+      change({
+        logo,
+        logoPalette: palette,
+        defaultTheme,
+        logoSurface,
+        ...palette,
+      });
       setToast(
         "Logo eklendi; logoya uygun renkler uygulandı. Kaydetmeyi unutmayın.",
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Logo okunamadı.");
+    } finally {
+      setLogoBusy(false);
+    }
+  }
+  async function reanalyzeLogo() {
+    if (!cafe.logo) return;
+    setLogoBusy(true);
+    try {
+      const blob = await (await fetch(cafe.logo)).blob();
+      await uploadLogo(new File([blob], "kafe-logosu", { type: blob.type }));
+    } catch {
+      setError("Logo analiz edilemedi. Görseli yeniden yükleyebilirsiniz.");
     } finally {
       setLogoBusy(false);
     }
@@ -201,20 +266,20 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
         <div className="studio-actions">
           <ThemeToggle />
           <button
-            className="btn studio-reset"
-            disabled={!dirty || busy || logoBusy}
-            onClick={() => {
-              if (
-                window.confirm(
-                  "Kaydedilmemiş tüm değişiklikler geri alınsın mı?",
-                )
-              ) {
-                setCafe(saved);
-                select("theme");
-              }
-            }}
+            className="btn"
+            disabled={!canUndo || busy || logoBusy}
+            onClick={undo}
+            title="Son değişikliği geri al"
           >
             <Undo2 size={16} /> Geri al
+          </button>
+          <button
+            className="btn"
+            disabled={!canRedo || busy || logoBusy}
+            onClick={redo}
+            title="Geri alınan değişikliği yinele"
+          >
+            <Redo2 size={16} /> İleri al
           </button>
           <button
             className="btn primary"
@@ -231,12 +296,15 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
         </div>
       </header>
       <div className="studio-layout">
-        <aside className="studio-layers">
+        <aside className="studio-layers" data-dragging={dragged?.kind}>
           <div className="studio-panel-title">
             <Layers size={17} />
             <h2>Menü blokları</h2>
           </div>
-          <p>Bir blok seçerek düzenleyin.</p>
+          <p>
+            Bir blok seçerek düzenleyin. Tutamaçtan sürükleyip hedefin önüne
+            bırakın.
+          </p>
           <button
             className={`layer-row ${selection === "theme" ? "selected" : ""}`}
             onClick={() => select("theme")}
@@ -256,8 +324,36 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
               <button
                 className={`layer-row category ${selection === `category:${cat}` ? "selected" : ""}`}
                 onClick={() => select(`category:${cat}`)}
+                onDragOver={(e) => {
+                  if (dragged?.kind === "category") e.preventDefault();
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (dragged?.kind === "category")
+                    change({
+                      items: reorderItems(
+                        cafe.items,
+                        dragged.id,
+                        cat,
+                        "category",
+                      ),
+                    });
+                  setDragged(null);
+                }}
               >
-                <Layers size={15} />
+                <span
+                  className="drag-handle"
+                  draggable
+                  title="Kategoriyi sürükleyerek sırala"
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("text/plain", cat);
+                    e.dataTransfer.effectAllowed = "move";
+                    setDragged({ kind: "category", id: cat });
+                  }}
+                  onDragEnd={() => setDragged(null)}
+                >
+                  <GripVertical size={15} />
+                </span>
                 <span>{cat}</span>
                 <small>
                   {cafe.items.filter((i) => i.category === cat).length}
@@ -270,8 +366,37 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
                     className={`layer-row layer-product ${selection === `item:${i.id}` ? "selected" : ""}`}
                     key={i.id}
                     onClick={() => select(`item:${i.id}`)}
+                    onDragOver={(e) => {
+                      if (dragged?.kind === "item") e.preventDefault();
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (dragged?.kind === "item")
+                        change({
+                          items: reorderItems(
+                            cafe.items,
+                            dragged.id,
+                            i.id,
+                            "item",
+                          ),
+                        });
+                      setDragged(null);
+                    }}
                   >
-                    <Package size={13} />
+                    <span
+                      className="drag-handle"
+                      draggable
+                      title="Ürünü sürükleyerek sırala"
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("text/plain", i.id);
+                        e.dataTransfer.effectAllowed = "move";
+                        setDragged({ kind: "item", id: i.id });
+                      }}
+                      onDragEnd={() => setDragged(null)}
+                    >
+                      <GripVertical size={13} />
+                    </span>
                     <span>{i.name || "Yeni ürün"}</span>
                     {!i.available && <Eye size={11} />}
                   </button>
@@ -314,6 +439,18 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
                 <Monitor size={16} />
               </button>
             </div>
+            <select
+              aria-label="Menü önizleme teması"
+              className="preview-theme-select"
+              value={previewTheme}
+              onChange={(e) => setPreviewTheme(e.target.value)}
+            >
+              <option value="auto">
+                Müşteri görünümü ({customerTheme === "dark" ? "Koyu" : "Açık"})
+              </option>
+              <option value="light">Açık tema önizlemesi</option>
+              <option value="dark">Koyu tema önizlemesi</option>
+            </select>
             <button
               className="inspector-toggle"
               onClick={() => setInspector(!inspector)}
@@ -328,7 +465,13 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
               if (e.target === e.currentTarget) select("theme");
             }}
           >
-            <div className="studio-menu-frame">
+            <div
+              className="studio-menu-frame"
+              data-menu-theme={
+                previewTheme === "auto" ? customerTheme : previewTheme
+              }
+              style={{ "--public-brand": cafe.accent } as CSSProperties}
+            >
               <MenuView
                 cafe={cafe}
                 onSelectBlock={select}
@@ -391,6 +534,16 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
                       : "Önerilen renkleri uygula"}
                   </button>
                   <p className="inspector-hint">
+                    {cafe.defaultTheme && (
+                      <>
+                        Logonuzun renk ağırlığına göre varsayılan müşteri
+                        teması:{" "}
+                        <strong>
+                          {cafe.defaultTheme === "dark" ? "Koyu" : "Açık"}
+                        </strong>
+                        .{" "}
+                      </>
+                    )}
                     Renkleri Genel görünüm bölümünden değiştirebilirsiniz.
                   </p>
                 </div>
@@ -490,9 +643,36 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
             {selection === "header" && (
               <>
                 <span className="inspector-kicker">İLK KARŞILAMA</span>
+                {cafe.logo && (
+                  <label>
+                    Logo boyutu
+                    <select
+                      value={cafe.logoSize || "medium"}
+                      onChange={(e) =>
+                        change({
+                          logoSize: e.target.value as
+                            "small" | "medium" | "large",
+                        })
+                      }
+                    >
+                      <option value="small">Küçük</option>
+                      <option value="medium">Orta</option>
+                      <option value="large">Büyük</option>
+                    </select>
+                  </label>
+                )}
                 <div className="logo-controls">
                   <label>
                     Kafe logosu
+                    {cafe.logo && (
+                      <button
+                        className="btn btn-secondary"
+                        disabled={logoBusy}
+                        onClick={() => void reanalyzeLogo()}
+                      >
+                        Logoyu yeniden analiz et
+                      </button>
+                    )}
                     {cafe.logo && (
                       <img
                         className="logo-thumbnail"
@@ -519,7 +699,14 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
                     <button
                       className="btn btn-secondary"
                       disabled={logoBusy}
-                      onClick={() => change({ logo: null, logoPalette: null })}
+                      onClick={() =>
+                        change({
+                          logo: null,
+                          logoPalette: null,
+                          logoSurface: null,
+                          defaultTheme: null,
+                        })
+                      }
                     >
                       Varsayılan simgeye dön
                     </button>

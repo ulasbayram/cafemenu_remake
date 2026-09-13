@@ -2,44 +2,16 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { Sun, Moon } from "lucide-react";
 import type { Cafe } from "@/lib/menu";
+import { useMenuTheme } from "./use-menu-theme";
 import MenuView, { type Rates } from "./menu-view";
 export default function PublicMenu({ cafe }: { cafe: Cafe }) {
   const [rates, setRates] = useState<Rates | null>(null),
     [currency, setCurrency] = useState("TRY"),
-    [theme, setTheme] = useState("light"),
     [rateError, setRateError] = useState("");
+  const { theme, toggleTheme } = useMenuTheme(cafe.defaultTheme);
   useEffect(() => {
-    const media = matchMedia("(prefers-color-scheme: dark)");
-    const apply = () => {
-      let saved;
-      try {
-        saved = localStorage.getItem("fincan-menu-theme");
-      } catch {}
-      const next =
-        saved === "dark" || saved === "light"
-          ? saved
-          : media.matches
-            ? "dark"
-            : "light";
-      document.documentElement.dataset.menuTheme = next;
-      setTheme(next);
-    };
-    apply();
-    media.addEventListener("change", apply);
-    window.addEventListener("storage", apply);
-    return () => {
-      media.removeEventListener("change", apply);
-      window.removeEventListener("storage", apply);
-    };
-  }, []);
-  function toggleTheme() {
-    const next = theme === "dark" ? "light" : "dark";
-    document.documentElement.dataset.menuTheme = next;
-    setTheme(next);
-    try {
-      localStorage.setItem("fincan-menu-theme", next);
-    } catch {}
-  }
+    document.documentElement.dataset.menuTheme = theme;
+  }, [theme]);
   useEffect(() => {
     fetch("/api/rates")
       .then(async (r) => {

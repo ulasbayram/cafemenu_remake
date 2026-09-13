@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { socialLinksSchema } from "./social-links";
 export const itemSchema = z.object({
   id: z.string().min(1).max(80),
   name: z.string().trim().min(1).max(100),
@@ -8,6 +9,14 @@ export const itemSchema = z.object({
   available: z.boolean(),
 });
 export const cafeSchema = z.object({
+  socialLinks: socialLinksSchema.optional(),
+  defaultTheme: z.enum(["light", "dark"]).nullable().optional(),
+  logoSize: z.enum(["small", "medium", "large"]).optional(),
+  logoSurface: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .nullable()
+    .optional(),
   name: z.string().trim().min(2).max(80),
   slug: z
     .string()
