@@ -21,6 +21,8 @@ export const cafeSchema = z.object({
           "signout-with-chatgpt",
           "callback",
           "favicon",
+          "login",
+          "editor",
         ].includes(s),
       "Bu adres kullanılamaz.",
     ),
@@ -38,7 +40,6 @@ export const cafeSchema = z.object({
     .optional(),
   font: z.enum(["serif", "sans", "mono"]).optional(),
   scale: z.number().min(0.9).max(1.3).optional(),
-  showBranding: z.boolean().optional(),
   published: z.boolean(),
   items: z.array(itemSchema).max(1000),
 });

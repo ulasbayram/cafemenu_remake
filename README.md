@@ -1,17 +1,19 @@
 # Fincan — QR Kafe Menü
 
-Türkçe, çok kafeli QR menü uygulaması. React 19 + Vinext, Cloudflare Workers ve D1.
+Türkçe QR menü uygulaması. React 19 + Vinext, Cloudflare Workers ve kalıcı D1 veritabanı.
 
-## Çalışan özellikler
+## İşlevler
 
-- Hesaba bağlı, uygulama seviyesinde sayı sınırı olmayan kafe oluşturma.
-- Sabit `/{kafe-slug}` menü adresi, yerel üretilen indirilebilir PNG QR.
-- Ürün ekleme, düzenleme, tekil silme, sıralama, kategori ve görünürlük.
-- Canlı menü üstünden ürün düzenleme; üç tasarım, vurgu/arka plan/metin renkleri, başlık fontu, yazı boyutu ve marka imzası kontrolü.
-- Taslak/yayın kontrolü; QR bağlantısı güncellemelerde değişmez.
-- ECB verilerini Frankfurter üzerinden alan TRY → USD/EUR dönüşümü. Altı saatlik ortak D1 önbelleği, kaynak tarihi ve kesintide son bilinen kur uyarısı. Anlık ticari kur değil, günlük referans kurudur.
-- Günlük tekil tarayıcı ziyaretleri, saat dağılımı, kafe ve dönem filtresi. Dönem toplamı günlük tekillerin toplamıdır; farklı günler arasında tekil kişi sayısı değildir.
-- Tesseract.js ile tarayıcı içinde Türkçe/İngilizce fotoğraf OCR, satır bazlı ürün/fiyat ayrıştırma ve düzenlenebilir onay listesi. Ücretli generatif AI entegrasyonu yoktur.
+- E-posta/şifre ile hesap oluşturma, giriş ve çıkış. Her kullanıcı yalnızca kendi kafelerini yönetir. Yönetim API'leri ve `/editor/:id` adresi sunucuda oturum ve sahiplik kontrolü yapar.
+- Kafelerim: kafe oluşturma, ad/konum düzenleme, sabit bağlantı ve PNG QR indirme.
+- Menü yönetimi: her kafenin ürün/kategori özeti, yayın durumu ve ayrı editöre geçiş.
+- Tam ekran menü stüdyosu: ortada gerçek önizleme, solda bloklar, sağda seçilen başlık/kategori/ürünün ayarları. Kategori yeniden adlandırma/sıralama, ürün ekleme/düzenleme/silme, görünürlük ve kategori içi sıra.
+- Üç tema; vurgu/arka plan/metin renkleri, başlık fontu ve yazı boyutu. Fincan watermark'ı her zaman görünür; kapatma ayarı yoktur, eski `showBranding:false` kayıtları da imzayı gizlemez.
+- Yönetim ekranları, kayıt/giriş ve editörde açık/koyu tema. Tercih cihazda saklanır; ilk açılışta sistem teması izlenir. Panel teması müşterinin menü tasarımını değiştirmez.
+- Sabit `/{kafe-slug}` adresi; QR kod fiyat veya tasarım değişiminde aynı kalır.
+- ECB / Frankfurter günlük referans kurlarıyla TRY → USD/EUR dönüşümü. Ortak altı saatlik D1 önbelleği, kaynak tarihi, kesintide son bilinen kur uyarısı. Ödemeler TL olarak alınır.
+- Günlük tekil tarayıcı ziyaretleri, saat dağılımı ve kafe/dönem filtresi. Dönem sayısı günlük tekillerin toplamıdır.
+- Tarayıcıda Tesseract.js Türkçe/İngilizce fotoğraf OCR; ürün/fiyat ayrıştırma ve onay listesi. Fotoğraf ücretli AI servisine gönderilmez. Çok sütunlu veya karmaşık menülerde manuel düzeltme gerekebilir.
 
 ## Yerelde çalıştırma
 
@@ -19,24 +21,36 @@ Node 22.13+ gereklidir.
 
 ```sh
 npm ci
-npm run db:generate
 npm run build
 node --import ./scripts/sites-env.mjs node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_fat_the_hunter.sql
+node --import ./scripts/sites-env.mjs node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0001_lyrical_odin.sql
 npm run dev
 ```
 
-İlk yerel migration yalnızca boş veritabanına bir kez uygulanır. Uygulama `http://localhost:5173` adresinde çalışır. Yerel giriş simülatörü yalnızca loopback geliştirme ortamındadır; üretimde Sites tarafından doğrulanan kimlik kullanılır. `npm` Windows komut dosyası hatası verirse `node "C:/Program Files/nodejs/node_modules/npm/bin/npm-cli.js"` ile npm komutunu çalıştırabilirsiniz.
+Migration'lar sırayla, bir kez uygulanır. Eski prototip veritabanı varsa yalnızca yeni `0001` dosyasını uygulayın. `http://localhost:5173/login` adresinden kendi hesabınızı oluşturun. Önceki Sites kimliğiyle halen doğrulanmış kullanıcının eski kafeleri, ilk kayıt sırasında aynı kimlikten yeni hesaba taşınır; doğrulanmış eski kimlik olmadan aktarım yapılmaz.
 
-`node node_modules/typescript/bin/tsc --noEmit` tip kontrolünü yapar. Yerel arayüzde adı `Mola Coffee · Test`, slug'ı `mola-coffee-test` olan bir kafe oluşturulduktan sonra `node scripts/smoke-test.mjs` temel güvenlik, kayıt, yayın, kur ve ziyaret tekilleştirme kontrollerini çalıştırır. Bu test yalnızca yerel test kafesini yayınlar.
+Windows npm shim sorunu olursa `node "C:/Program Files/nodejs/node_modules/npm/bin/npm-cli.js"` ile npm komutunu çalıştırabilirsiniz.
 
-## Maliyet
+## Doğrulama
 
-QR, OCR ve Frankfurter için işlem başına ücret yoktur. Tarama motoru ve dil modelleri ilk taramada CDN üzerinden indirilir; fotoğraf cihazda işlenir. OCR kusursuz değildir, özellikle çok sütunlu/fiyatı ayrı hizalanmış menülerde düzeltme gerekebilir. Fiyatlar aktarılmadan önce kontrol edilir.
+```sh
+node node_modules/typescript/bin/tsc --noEmit
+node node_modules/eslint/bin/eslint.js app lib db
+node scripts/account-smoke.mjs
+```
 
-Cloudflare'ın ücretsiz katmanları düşük trafik için uygundur; Sites barındırması kendi erişim ve plan koşullarına tabidir. Ücretsiz katmanların aşılmayacağı veya platformun ücretsiz kalacağı garanti edilmez. Özel alan adı ayrıca satın alınır/bağlanır. Kaynaklar: [Workers fiyatlandırması](https://developers.cloudflare.com/workers/platform/pricing/), [D1 fiyatlandırması](https://developers.cloudflare.com/d1/platform/pricing/), [Frankfurter](https://frankfurter.dev/).
+Son komut **yalnızca localhost üzerinde** iki `.invalid` test hesabı ve test kafesi oluşturur; kayıt/giriş, güvenli çerez nitelikleri, hesap izolasyonu, editör yetkisi, geçersiz şifre, negatif fiyat, kaynak kontrolü, kalıcı watermark ve çıkışta oturum iptalini test eder. Test hesapları üretim veritabanına taşınmaz. Test şifresi gerçek kullanım için uygun değildir.
 
-## Yayın ve sınırlar
+## Kimlik doğrulama
 
-Sites kimliği `.openai/hosting.json` içindedir. D1 migration'ları `drizzle/` ile sürümlenir. Gerçek müşteri menülerine anonim erişim için Site erişim politikasının herkese açık olması gerekir; ilk dağıtım yalnızca sahibine özeldir. Yönetim işlemlerinde kimlik, kayıt sahipliği, şema ve aynı kaynak kontrolü sunucuda uygulanır. Kimlik başlıklarına yalnızca Sites'ın güvenilir dispatcher'ı arkasında güvenilir; uygulama internete doğrudan farklı bir sunucudan açılacaksa gerçek kimlik doğrulama eklenmelidir.
+Şifreler rastgele tuzla scrypt (N=32768, r=8, p=3) kullanılarak hashlenir. Oturumlar 256 bit rastgele belirteçlerle oluşturulur; veritabanında yalnızca SHA-256 özetleri tutulur. Çerezler HttpOnly, SameSite=Lax; HTTPS'te Secure ve `__Host-` öneki kullanır. Oturum 14 gün geçerlidir; çıkış sunucu kaydını siler. Giriş/kayıt denemeleri e-posta ve IP bazında veritabanında sınırlandırılır. Parola en az 12, en fazla 128 karakterdir.
 
-Özel alan adı bağlı değildir. E-posta/şifreli bağımsız SaaS hesabı, ödeme/abonelik, gelişmiş generatif AI ve serbest sürükle-bırak sayfa tasarımcısı bu sürümde yoktur. Başlangıç tasarımı temalar ve görünüm ayarlarıyla özelleştirilir. Ziyaretler yaklaşık ölçümdür: tarayıcı verisini silme, botlar ve farklı cihazlar sayıları etkileyebilir. Üretimde yüksek trafik için ziyaret uç noktasına platform hız sınırı ve periyodik eski kayıt temizliği eklenmelidir.
+E-posta doğrulama ve e-posta ile parola sıfırlama bu sürümde yoktur; gerçek bir e-posta gönderim servisi gerektirir. Giriş için ChatGPT hesabı gerekmez. Sites'ın dış erişim politikası, uygulamanın kendi hesabından ayrı bir katmandır; ilk yayın sahibiyle sınırlıysa dış ziyaretçiler Site'a erişemez.
+
+## Maliyet ve yayın
+
+QR üretimi, fotoğraf OCR ve Frankfurter verisi işlem başına ücret gerektirmez. Tarama motoru ve dil dosyaları ilk kullanımda CDN'den indirilir; görüntü cihazda işlenir. Kalıcı veriler D1'de tutulur; özel bir sürekli çalışan sunucu yoktur.
+
+Cloudflare ücretsiz katmanı düşük trafiğe uygundur ancak özellikle güvenli parola hashleme CPU tüketir. Gerçek barındırma/Sites planı ve trafik limitleri kontrol edilmelidir; sıfır fatura garantisi verilmez. Özel alan adı ayrıca satın alınır/bağlanır ve henüz bağlı değildir. Referanslar: [Workers fiyatları](https://developers.cloudflare.com/workers/platform/pricing/), [D1 fiyatları](https://developers.cloudflare.com/d1/platform/pricing/), [Frankfurter](https://frankfurter.dev/), [OWASP parola saklama](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html).
+
+Site kimliği `.openai/hosting.json` içindedir. Migration dosyaları `drizzle/` altında sürümlenir. Müşterilerin anonim menü erişimi için Site'ın erişim politikasının herkese açık olarak ayarlanması gerekir. Abonelik/ödeme ve generatif AI entegrasyonu yoktur. Ziyaretler yaklaşık ölçümdür; farklı cihazlar, veri temizleme ve botlar sayıları etkileyebilir.

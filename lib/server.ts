@@ -1,13 +1,13 @@
 import { env } from "cloudflare:workers";
-import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { currentUser } from "./auth";
 export function db() {
   if (!env.DB) throw new Error("Veritabanı bağlantısı hazır değil.");
   return env.DB;
 }
 export async function owner() {
-  const u = await getChatGPTUser();
+  const u = await currentUser();
   if (!u) throw new Error("UNAUTHORIZED");
-  return u.userId;
+  return u.id;
 }
 export function fail(e: unknown) {
   console.error(e);

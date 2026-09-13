@@ -1,6 +1,6 @@
 "use client";
-import { useState, type CSSProperties } from "react";
-import { Coffee, MapPin, Leaf, ChevronRight } from "lucide-react";
+import { useState, useEffect, useRef, type CSSProperties } from "react";
+import { Coffee, MapPin, Leaf, LockKeyhole } from "lucide-react";
 import type { Cafe, Item } from "@/lib/menu";
 export type Rates = {
   USD: number;
@@ -9,28 +9,73 @@ export type Rates = {
   source: string;
   stale: boolean;
 };
+export type MenuBlock =
+  "theme" | "header" | "footer" | `category:${string}` | `item:${string}`;
 export default function MenuView({
   cafe,
-  onEdit,
   rates,
   currency = "TRY",
+  onSelectBlock,
+  selectedBlock,
+  onEdit,
 }: {
   cafe: Cafe;
-  onEdit?: (item: Item) => void;
   rates?: Rates | null;
   currency?: string;
+  onSelectBlock?: (block: MenuBlock) => void;
+  selectedBlock?: MenuBlock;
+  onEdit?: (item: Item) => void;
 }) {
-  const categories = [
-    ...new Set(
-      cafe.items.filter((i) => onEdit || i.available).map((i) => i.category),
-    ),
-  ];
+  const editable = !!(onSelectBlock || onEdit),
+    categories = [
+      ...new Set(
+        cafe.items
+          .filter((i) => editable || i.available)
+          .map((i) => i.category),
+      ),
+    ];
   const [selected, setSelected] = useState("Tümü");
-  const active =
-    selected === "Tümü" || categories.includes(selected) ? selected : "Tümü";
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!onSelectBlock || !selectedBlock || selectedBlock === "theme") return;
+    const element = root.current?.querySelector(
+      `[data-menu-block="${CSS.escape(selectedBlock)}"]`,
+    );
+    element?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [selectedBlock, onSelectBlock]);
+  const active = onSelectBlock
+    ? "Tümü"
+    : selected === "Tümü" || categories.includes(selected)
+      ? selected
+      : "Tümü";
+  const blockClass = (key: MenuBlock) =>
+    onSelectBlock
+      ? `selectable-block ${selectedBlock === key ? "block-selected" : ""}`
+      : "";
+  const selectProps = (key: MenuBlock, label: string) =>
+    onSelectBlock
+      ? {
+          role: "button",
+          "data-menu-block": key,
+          tabIndex: 0,
+          "aria-label": `${label} bloğunu düzenle`,
+          onClick: (e: React.MouseEvent) => {
+            e.stopPropagation();
+            onSelectBlock(key);
+          },
+          onKeyDown: (e: React.KeyboardEvent) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onSelectBlock(key);
+            }
+          },
+        }
+      : {};
+  const ItemTag = editable ? "button" : "div";
   return (
     <div
-      className={`customer-menu theme-${cafe.style}`}
+      ref={root}
+      className={`customer-menu theme-${cafe.style} ${onSelectBlock ? "block-editing" : ""}`}
       style={
         {
           "--menu-accent": cafe.accent,
@@ -46,7 +91,11 @@ export default function MenuView({
         } as CSSProperties
       }
     >
-      <div className="menu-brand">
+      <div
+        className={`menu-brand ${blockClass("header")}`}
+        {...selectProps("header", "Başlık")}
+      >
+        {onSelectBlock && <span className="block-label">Başlık</span>}
         <span className="menu-emblem">
           <Coffee size={30} strokeWidth={1.4} />
         </span>
@@ -71,7 +120,10 @@ export default function MenuView({
           <button
             key={c}
             className={active === c ? "selected" : ""}
-            onClick={() => setSelected(c)}
+            onClick={() => {
+              setSelected(c);
+              onSelectBlock?.(`category:${c}`);
+            }}
           >
             {c}
           </button>
@@ -82,27 +134,44 @@ export default function MenuView({
           .filter((c) => active === "Tümü" || c === active)
           .map((cat) => (
             <section key={cat}>
-              <h2>
+              <h2
+                className={blockClass(`category:${cat}`)}
+                {...selectProps(`category:${cat}`, `${cat} kategorisi`)}
+              >
                 {cat}
                 <span>
                   {
                     cafe.items.filter(
-                      (i) => i.category === cat && (onEdit || i.available),
+                      (i) => i.category === cat && (editable || i.available),
                     ).length
                   }
                 </span>
+                {onSelectBlock && <span className="block-label">Kategori</span>}
               </h2>
               {cafe.items
-                .filter((i) => i.category === cat && (onEdit || i.available))
+                .filter((i) => i.category === cat && (editable || i.available))
                 .map((item) => (
-                  <button
-                    className={`menu-item ${!item.available ? "unavailable" : ""}`}
+                  <ItemTag
+                    data-menu-block={`item:${item.id}`}
+                    className={`menu-item ${!item.available ? "unavailable" : ""} ${blockClass(`item:${item.id}`)}`}
                     key={item.id}
-                    onClick={() => onEdit?.(item)}
-                    disabled={!onEdit}
+                    onClick={
+                      editable
+                        ? () => {
+                            onEdit?.(item);
+                            onSelectBlock?.(`item:${item.id}`);
+                          }
+                        : undefined
+                    }
+                    aria-label={
+                      editable
+                        ? `${item.name || "Yeni ürün"} ürününü düzenle`
+                        : undefined
+                    }
                   >
+                    {onSelectBlock && <span className="block-label">Ürün</span>}
                     <span>
-                      <strong>{item.name}</strong>
+                      <strong>{item.name || "Yeni ürün"}</strong>
                       <small>{item.description}</small>
                       {!item.available && <em>Menüde gizli</em>}
                     </span>
@@ -125,8 +194,7 @@ export default function MenuView({
                             : rates?.[currency as "USD" | "EUR"] || 1),
                       )}
                     </b>
-                    {onEdit && <ChevronRight size={14} />}
-                  </button>
+                  </ItemTag>
                 ))}
             </section>
           ))}
@@ -137,12 +205,14 @@ export default function MenuView({
           </div>
         )}
       </div>
-      {cafe.showBranding !== false && (
-        <footer className="menu-footer">
-          <Coffee size={14} />
-          <span>fincan ile hazırlandı</span>
-        </footer>
-      )}
+      <footer
+        className={`menu-footer permanent-watermark ${blockClass("footer")}`}
+        {...selectProps("footer", "Fincan imzası")}
+      >
+        <Coffee size={14} />
+        <span>fincan ile hazırlandı</span>
+        {onSelectBlock && <LockKeyhole size={12} />}
+      </footer>
     </div>
   );
 }
