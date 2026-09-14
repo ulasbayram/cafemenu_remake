@@ -6,12 +6,13 @@ export async function GET(request: Request) {
     await owner(request);
     const { data, error } = await asUser(userJwt(request))
       .from("cafes")
-      .select("id, name, location, social, published, table_count, logo_url, data, created_at")
+      .select("id, slug, name, location, social, published, table_count, logo_url, data, created_at")
       .order("created_at", { ascending: false });
     if (error) throw error;
     return Response.json(
       data.map((r) => ({
         ...(r.data as object),
+        slug: r.slug,
         name: r.name,
         location: r.location,
         socialLinks: r.social,

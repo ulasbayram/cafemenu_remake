@@ -21,7 +21,7 @@ export async function GET(
       return Response.json({ error: "Kafe bulunamadı." }, { status: 404 });
     const { data, error } = await asUser(userJwt(request))
       .from("cafes")
-      .select("id, name, location, social, published, table_count, logo_url, data, created_at")
+      .select("id, slug, name, location, social, published, table_count, logo_url, data, created_at")
       .eq("id", id)
       .limit(1);
     if (error) throw error;
@@ -30,6 +30,7 @@ export async function GET(
       return Response.json({ error: "Kafe bulunamadı." }, { status: 404 });
     return Response.json({
       ...((row.data ?? {}) as object),
+      slug: row.slug,
       name: row.name,
       location: row.location,
       socialLinks: row.social,

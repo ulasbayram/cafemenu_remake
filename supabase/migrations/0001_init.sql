@@ -87,7 +87,7 @@ create policy "menu_images_owner_write" on storage.objects
   for insert to authenticated
   with check (
     bucket_id = 'menu-images'
-    and (storage.foldername(name))[1] = (select auth.uid())::text
+    and (storage.foldername(name))[2] = (select auth.uid())::text
   );
 
 drop policy if exists "menu_images_owner_delete" on storage.objects;
@@ -95,7 +95,7 @@ create policy "menu_images_owner_delete" on storage.objects
   for delete to authenticated
   using (
     bucket_id = 'menu-images'
-    and (storage.foldername(name))[1] = (select auth.uid())::text
+    and (storage.foldername(name))[2] = (select auth.uid())::text
   );
 
 -- ─── updated_at trigger ──────────────────────────────────────────────────────
