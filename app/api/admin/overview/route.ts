@@ -1,43 +1,47 @@
-import { db, fail } from "@/lib/server";
+import { svc } from "@/db";
 import { verifyAdmin } from "@/lib/jwt";
+import { fail } from "@/lib/server";
 
 export async function GET(request: Request) {
   try {
     if (!(await verifyAdmin(request)))
       return Response.json({ error: "Bu sayfa size ait değil." }, { status: 403 });
-    const sql = db();
-    const [[counts], [visitAgg], series, [recentSignups]] = await Promise.all([
-      sql`SELECT
-            COUNT(*)::int AS cafes,
-            COUNT(*) FILTER (WHERE published)::int AS published_cafes,
-            COUNT(*) FILTER (WHERE created_at > now() - interval '7 days')::int AS new_cafes_7d
-          FROM cafes`,
-      sql`SELECT
-            COUNT(*)::int AS visits_total,
-            COUNT(*) FILTER (WHERE day >= (now() - interval '7 days')::date)::int AS visits_7d,
-            COUNT(*) FILTER (WHERE day >= (now() - interval '30 days')::date)::int AS visits_30d,
-            COUNT(DISTINCT cafe) FILTER (WHERE day >= (now() - interval '30 days')::date)::int AS active_cafes_30d
-          FROM visits`,
-      sql`SELECT day::text AS day, COUNT(*)::int AS count
-          FROM visits
-          WHERE day >= (now() - interval '30 days')::date
-          GROUP BY day ORDER BY day`,
-      sql`SELECT COUNT(*)::int AS users FROM auth.users WHERE created_at > now() - interval '7 days'`,
-    ]);
-    const [userCount] = await sql`SELECT COUNT(*)::int AS users FROM auth.users`;
-    const [rateRow] =
-      await sql`SELECT fetched_at FROM rates WHERE key = 'TRY' LIMIT 1`;
+    const { data, error } = await svc().rpc("admin_overview");
+    if (error) throw error;
+    const r = data as {
+      cafes: number;
+      published_cafes: number;
+      new_cafes_7d: number;
+      visits_total: number;
+      visits_7d: number;
+      visits_30d: number;
+      active_cafes_30d: number;
+      users: number;
+      new_users_7d: number;
+    };
+    const series = await svc()
+      .from("visits")
+      .select("day")
+      .gte("day", new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10));
+    const byDay: Record<string, number> = {};
+    for (const row of series.data ?? [])
+      byDay[row.day] = (byDay[row.day] ?? 0) + 1;
+    const [rateRow] = (await svc()
+      .from("rates")
+      .select("fetched_at")
+      .eq("key", "TRY")
+      .limit(1)).data ?? [];
     return Response.json({
-      cafes: counts.cafes,
-      publishedCafes: counts.published_cafes,
-      newCafes7d: counts.new_cafes_7d,
-      visitsTotal: visitAgg.visits_total,
-      visits7d: visitAgg.visits_7d,
-      visits30d: visitAgg.visits_30d,
-      activeCafes30d: visitAgg.active_cafes_30d,
-      users: userCount.users,
-      newUsers7d: recentSignups.users,
-      series,
+      cafes: Number(r.cafes),
+      publishedCafes: Number(r.published_cafes),
+      newCafes7d: Number(r.new_cafes_7d),
+      visitsTotal: Number(r.visits_total),
+      visits7d: Number(r.visits_7d),
+      visits30d: Number(r.visits_30d),
+      activeCafes30d: Number(r.active_cafes_30d),
+      users: Number(r.users),
+      newUsers7d: Number(r.new_users_7d),
+      series: Object.entries(byDay).map(([day, count]) => ({ day, count })),
       ratesFetchedAt: rateRow?.fetched_at ?? null,
     });
   } catch (e) {

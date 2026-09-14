@@ -43,23 +43,9 @@ import { Cafe, Item, slugify, sampleItems } from "@/lib/menu";
 import { type Rates } from "./menu-view";
 import { parseMenu } from "@/lib/ocr";
 import { socialFields } from "@/lib/social-links";
+import { api } from "@/lib/client-api";
 type Tab = "overview" | "cafes" | "menus" | "import" | "stats" | "settings";
 type Stat = { cafe: string; day: string; hour: number; count: number };
-async function api<T>(path: string, body?: unknown, method = "POST") {
-  const r = await fetch(
-    path,
-    body
-      ? {
-          method,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        }
-      : undefined,
-  );
-  const d = (await r.json()) as T & { error?: string };
-  if (!r.ok) throw new Error(d.error || "İşlem tamamlanamadı.");
-  return d;
-}
 function Modal({
   title,
   children,

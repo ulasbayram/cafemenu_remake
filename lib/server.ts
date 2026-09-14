@@ -1,14 +1,16 @@
-import { db } from "@/db";
+import { asUser, isUniqueViolation } from "@/db";
 import { verifyRequest } from "@/lib/jwt";
 
-export { db };
-export type Sql = Awaited<ReturnType<typeof db>>;
-
-/** Throws UNAUTHORIZED if no valid user token; returns the user id. */
+/** Verifies the Bearer JWT; returns the user id or throws UNAUTHORIZED. */
 export async function owner(request: Request): Promise<string> {
   const user = await verifyRequest(request);
   if (!user) throw new Error("UNAUTHORIZED");
   return user.id;
+}
+
+/** Raw Authorization header value (for user-scoped Supabase clients). */
+export function userJwt(request: Request): string {
+  return request.headers.get("authorization")?.slice(7).trim() ?? "";
 }
 
 export function fail(e: unknown) {
@@ -29,3 +31,5 @@ export function sameOrigin(r: Request) {
   if (!origin) return true;
   return origin === new URL(r.url).origin;
 }
+
+export { asUser, isUniqueViolation };

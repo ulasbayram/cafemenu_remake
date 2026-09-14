@@ -1,4 +1,5 @@
-import { db, fail } from "@/lib/server";
+import { svc } from "@/db";
+import { fail } from "@/lib/server";
 
 export async function POST(request: Request) {
   try {
@@ -17,16 +18,19 @@ export async function POST(request: Request) {
       !/^[0-9a-f-]{36}$/.test(cafe)
     )
       return new Response(null, { status: 400 });
-    const sql = db();
-    const [c] = await sql`
-      SELECT id, published, table_count FROM cafes WHERE id = ${cafe} LIMIT 1`;
-    if (!c || !c.published) return new Response(null, { status: 404 });
-    // Validate table attribution: 1..table_count, else drop to NULL.
+    const client = svc();
+    const { data: c } = await client
+      .from("cafes")
+      .select("id, published, table_count")
+      .eq("id", cafe)
+      .limit(1);
+    if (!c?.[0] || !c[0].published) return new Response(null, { status: 404 });
+    const cafeRow = c[0];
     const tableNo =
       typeof table === "number" &&
       Number.isInteger(table) &&
       table >= 1 &&
-      table <= Number(c.table_count ?? 0)
+      table <= Number(cafeRow.table_count ?? 0)
         ? table
         : null;
     const now = new Date(),
@@ -37,10 +41,13 @@ export async function POST(request: Request) {
           hour: "2-digit",
         }),
       );
-    await sql`
-      INSERT INTO visits (cafe, day, visitor, hour, table_no)
-      VALUES (${cafe}, ${day}, ${visitor}, ${hour}, ${tableNo})
-      ON CONFLICT (cafe, day, visitor) DO NOTHING`;
+    const { error } = await client
+      .from("visits")
+      .upsert(
+        { cafe, day, visitor, hour, table_no: tableNo },
+        { onConflict: "cafe,day,visitor", ignoreDuplicates: true },
+      );
+    if (error) throw error;
     return new Response(null, { status: 204 });
   } catch (e) {
     return fail(e);

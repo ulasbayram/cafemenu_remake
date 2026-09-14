@@ -1,32 +1,43 @@
-import { db, owner, fail, sameOrigin } from "@/lib/server";
+import {
+  asUser,
+  isUniqueViolation,
+  owner,
+  userJwt,
+  fail,
+  sameOrigin,
+} from "@/lib/server";
 import { cafeSchema } from "@/lib/menu";
 
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const uid = await owner(request);
+    await owner(request);
     if (!sameOrigin(request))
       return Response.json({ error: "Geçersiz istek." }, { status: 403 });
     const { id } = await params;
     if (!UUID.test(id))
       return Response.json({ error: "Kafe bulunamadı." }, { status: 404 });
-    const sql = db();
-    const [existing] = await sql`
-      SELECT id, slug, created_at FROM cafes WHERE id = ${id} AND owner = ${uid}`;
-    if (!existing)
-      return Response.json({ error: "Kafe bulunamadı." }, { status: 404 });
+    const client = asUser(userJwt(request));
     const result = cafeSchema.safeParse(await request.json());
     if (!result.success)
       return Response.json(
         { error: result.error.issues[0].message },
         { status: 400 },
       );
-    if (result.data.slug !== existing.slug)
+    const c = result.data;
+    const { data: existingRows } = await client
+      .from("cafes")
+      .select("id, slug, created_at")
+      .eq("id", id)
+      .limit(1);
+    const existing = existingRows?.[0];
+    if (!existing)
+      return Response.json({ error: "Kafe bulunamadı." }, { status: 404 });
+    if (c.slug !== existing.slug)
       return Response.json(
         {
           error:
@@ -34,22 +45,34 @@ export async function PUT(
         },
         { status: 400 },
       );
-    const c = result.data;
-    await sql`
-      UPDATE cafes SET
-        name = ${c.name},
-        location = ${c.location ?? ""},
-        social = ${JSON.stringify(c.socialLinks ?? {})}::jsonb,
-        published = ${c.published},
-        table_count = ${c.tableCount ?? 0},
-        data = ${JSON.stringify({ ...c, name: undefined, slug: undefined, location: undefined, socialLinks: undefined, published: undefined, tableCount: undefined })}::jsonb,
-        updated_at = now()
-      WHERE id = ${id} AND owner = ${uid}`;
-    return Response.json({
-      ...c,
-      id,
-      createdAt: new Date(existing.created_at).toISOString(),
-    });
+    const { error } = await client
+      .from("cafes")
+      .update({
+        name: c.name,
+        location: c.location ?? "",
+        social: c.socialLinks ?? {},
+        published: c.published,
+        table_count: c.tableCount ?? 0,
+        data: {
+          ...c,
+          name: undefined,
+          slug: undefined,
+          location: undefined,
+          socialLinks: undefined,
+          published: undefined,
+          tableCount: undefined,
+        },
+      })
+      .eq("id", id);
+    if (error) {
+      if (isUniqueViolation(error))
+        return Response.json(
+          { error: "Bu menü adresi kullanılıyor. Başka bir adres seçin." },
+          { status: 409 },
+        );
+      throw error;
+    }
+    return Response.json({ ...c, id, createdAt: existing.created_at });
   } catch (e) {
     return fail(e);
   }

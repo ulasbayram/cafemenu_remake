@@ -1,37 +1,46 @@
-import postgres from "postgres";
+import { createClient, type SupabaseClient } from "supabase-js";
 
-let client: ReturnType<typeof postgres> | undefined;
+let service: SupabaseClient | undefined;
 
-/**
- * Supabase Postgres pooler connection (server-only).
- * Set DATABASE_URL to the Supabase "Connection string → Pooler" URI, port 6543.
- * prepare:false is required on Supavisor transaction mode.
- */
-export function db() {
-  const url = (globalThis as { FINCAN_DATABASE_URL?: string })
-    .FINCAN_DATABASE_URL;
-  if (!url)
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value)
     throw new Error(
-      "DATABASE_URL is not configured. Add the Supabase pooler connection string to .dev.vars or wrangler secrets.",
+      `${name} is not configured. Add it via wrangler secret put (prod) or .dev.vars (local).`,
     );
-  client ??= postgres(url, {
-    prepare: false,
-    max: 8,
-    idle_timeout: 20,
-    connect_timeout: 10,
-    ssl: "prefer",
+  return value;
+}
+
+export function projectUrl(): string {
+  return requireEnv("SUPABASE_URL").replace(/\/+$/, "");
+}
+
+function publishableKey(): string {
+  const key =
+    process.env.SUPABASE_PUBLISHABLE_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!key) throw new Error("SUPABASE_PUBLISHABLE_KEY is not configured.");
+  return key;
+}
+
+/** Service client (secret key) — bypasses RLS; server-only. */
+export function svc(): SupabaseClient {
+  service ??= createClient(projectUrl(), requireEnv("SUPABASE_SECRET_KEY"), {
+    auth: { persistSession: false, autoRefreshToken: false },
   });
-  return client;
+  return service;
 }
 
-export type Database = ReturnType<typeof db>;
-
-/** Escape a string for safe inclusion in a Postgres JSON literal. */
-function jsonLiteral(value: unknown): string {
-  const s = typeof value === "string" ? value : JSON.stringify(value);
-  return `'${s.replace(/'/g, "''")}'`;
+/** User-scoped client: publishable apikey + the caller's JWT (RLS enforced). */
+export function asUser(jwt: string): SupabaseClient {
+  return createClient(projectUrl(), publishableKey(), {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: `Bearer ${jwt}` } },
+  });
 }
 
-export type Sql = ReturnType<typeof db>;
-
-export { jsonLiteral };
+/** PostgREST unique-violation → 409 helper. */
+export function isUniqueViolation(error: { code?: string } | null): boolean {
+  return error?.code === "23505";
+}

@@ -33,6 +33,7 @@ import {
   Camera,
 } from "lucide-react";
 import { menuCategories, type Cafe, type Item } from "@/lib/menu";
+import { api } from "@/lib/client-api";
 import MenuView, { type MenuBlock } from "../menu-view";
 import ThemeToggle from "../theme-toggle";
 import { prepareLogo, preparePhoto } from "@/lib/logo";
@@ -330,13 +331,7 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
     setBusy(true);
     setError("");
     try {
-      const r = await fetch(`/api/cafes/${cafe.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(cafe),
-      });
-      const data = (await r.json()) as Cafe & { error?: string };
-      if (!r.ok) throw new Error(data.error);
+      const data = await api<Cafe>(`/api/cafes/${cafe.id}`, cafe, "PUT");
       setCafe((current) =>
         JSON.stringify(current) === JSON.stringify(submitted) ? data : current,
       );

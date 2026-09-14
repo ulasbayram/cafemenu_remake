@@ -1,4 +1,4 @@
-import { db } from "@/lib/server";
+import { svc } from "@/db";
 import PublicMenu from "../public-menu";
 import { notFound } from "next/navigation";
 export const dynamic = "force-dynamic";
@@ -11,14 +11,15 @@ export default async function Page({
 }) {
   const { slug } = await params;
   const { table: tableParam } = await searchParams;
-  const sql = db();
-  const rows =
-    await sql`SELECT id, name, location, social, published, table_count, logo_url, data, created_at
-              FROM cafes WHERE slug = ${slug} LIMIT 1`;
-  const r = rows[0];
+  const { data } = await svc()
+    .from("cafes")
+    .select("id, name, location, social, published, table_count, logo_url, data, created_at")
+    .eq("slug", slug)
+    .limit(1);
+  const r = data?.[0];
   if (!r) notFound();
-  const c = r.data as Record<string, unknown>;
-  if (!c.published && !r.published) notFound();
+  const c = (r.data ?? {}) as Record<string, unknown>;
+  if (!r.published) notFound();
   const tableCount = Number(r.table_count ?? 0);
   const table =
     tableParam && /^[0-9]+$/.test(tableParam) && Number(tableParam) >= 1
@@ -48,7 +49,7 @@ export default async function Page({
           tableCount,
           logoUrl: r.logo_url ?? undefined,
           id: r.id,
-          createdAt: new Date(r.created_at).toISOString(),
+          createdAt: r.created_at,
         } as never}
         table={table}
       />

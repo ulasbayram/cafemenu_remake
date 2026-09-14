@@ -1,10 +1,10 @@
 /**
- * Build-time env injection for vinext/Workers:
- * - Loads .env (public NEXT_PUBLIC_* + server secrets)
- * - Defines import.meta.env / process.env for the client bundle
- * - Emits dist/server/env-vars.json consumed by sites-env.mjs at runtime
+ * Build-time env for the CLIENT bundle:
+ * - Loads .env, inlines NEXT_PUBLIC_* into process.env / import.meta.env
+ * - Server runtime env comes from wrangler secrets (prod) or .dev.vars (local),
+ *   read via process.env inside workerd (nodejs_compat). No build-time emission.
  */
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 const envPath = resolve(process.cwd(), ".env");
@@ -20,25 +20,14 @@ const plugin = {
   name: "fincan-env",
   config(config) {
     const define = {};
+    // Only public vars are inlined into the client bundle.
     for (const [k, v] of Object.entries(env)) {
+      if (!k.startsWith("NEXT_PUBLIC_")) continue;
       define[`process.env.${k}`] = JSON.stringify(v);
       define[`import.meta.env.${k}`] = JSON.stringify(v);
     }
     config.define = { ...config.define, ...define };
-    config.env = { ...config.env, ...env };
     return config;
-  },
-  closeBundle() {
-    try {
-      mkdirSync(resolve(process.cwd(), "dist/server"), { recursive: true });
-      // Runtime server env (Workers secrets come from wrangler; local from .env)
-      writeFileSync(
-        resolve(process.cwd(), "dist/server/env-vars.json"),
-        JSON.stringify(env),
-      );
-    } catch {
-      // dist may not exist in non-build contexts
-    }
   },
 };
 

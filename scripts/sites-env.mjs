@@ -40,6 +40,12 @@ if (
   !process.env.SUPABASE_SECRET_KEY
 )
   process.env.SUPABASE_SECRET_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// SUPABASE_URL is the non-prefixed alias of the public project URL; server
+// code (jwt.ts) reads it, while the dashboard supplies only NEXT_PUBLIC_.
+process.env.SUPABASE_URL ||=
+  process.env.NEXT_PUBLIC_SUPABASE_URL;
+process.env.SUPABASE_PUBLISHABLE_KEY ||=
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 for (const key of envKeys) {
   const value = process.env[key];
   if (value) {

@@ -1,21 +1,12 @@
-import { db, owner, fail } from "@/lib/server";
+import { asUser, owner, userJwt, fail } from "@/lib/server";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const uid = await owner(new Request("http://local"));
-    const since = new Date(Date.now() - 29 * 86400000).toLocaleDateString(
-      "en-CA",
-      { timeZone: "Europe/Istanbul" },
-    );
-    const sql = db();
-    const rows = await sql`
-      SELECT v.cafe, v.day, v.hour, COUNT(*)::int AS count, MIN(v.table_no) AS table_no
-      FROM visits v
-      JOIN cafes c ON c.id = v.cafe
-      WHERE c.owner = ${uid} AND v.day >= ${since}
-      GROUP BY v.cafe, v.day, v.hour`;
+    await owner(request);
+    const { data, error } = await asUser(userJwt(request)).rpc("visits_stats");
+    if (error) throw error;
     return Response.json(
-      rows.map((r) => ({
+      data.map((r: Record<string, unknown>) => ({
         cafe: r.cafe,
         day: r.day,
         hour: Number(r.hour),

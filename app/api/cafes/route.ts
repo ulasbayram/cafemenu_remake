@@ -1,15 +1,16 @@
-import { db, owner, fail, sameOrigin } from "@/lib/server";
+import { asUser, isUniqueViolation, owner, userJwt, fail, sameOrigin } from "@/lib/server";
 import { cafeSchema } from "@/lib/menu";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const uid = await owner(new Request("http://local"));
-    const sql = db();
-    const rows =
-      await sql`SELECT id, name, location, social, published, table_count, logo_url, data, created_at
-                FROM cafes WHERE owner = ${uid} ORDER BY created_at DESC`;
+    await owner(request);
+    const { data, error } = await asUser(userJwt(request))
+      .from("cafes")
+      .select("id, name, location, social, published, table_count, logo_url, data, created_at")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
     return Response.json(
-      rows.map((r) => ({
+      data.map((r) => ({
         ...(r.data as object),
         name: r.name,
         location: r.location,
@@ -18,7 +19,7 @@ export async function GET() {
         tableCount: Number(r.table_count),
         logoUrl: r.logo_url ?? undefined,
         id: r.id,
-        createdAt: new Date(r.created_at).toISOString(),
+        createdAt: r.created_at,
       })),
     );
   } catch (e) {
@@ -38,28 +39,40 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     const c = result.data;
-    const sql = db();
-    const used =
-      await sql`SELECT id FROM cafes WHERE slug = ${c.slug} LIMIT 1`;
-    if (used.length)
-      return Response.json(
-        { error: "Bu menü adresi kullanılıyor. Başka bir adres seçin." },
-        { status: 409 },
-      );
-    const id = crypto.randomUUID();
-    const [row] = await sql`
-      INSERT INTO cafes (id, owner, slug, name, location, social, published, table_count, data, created_at, updated_at)
-      VALUES (${id}, ${uid}, ${c.slug}, ${c.name}, ${c.location ?? ""},
-              ${JSON.stringify(c.socialLinks ?? {})}::jsonb, ${c.published},
-              ${c.tableCount ?? 0}, ${JSON.stringify({ ...c, name: undefined, slug: undefined, location: undefined, socialLinks: undefined, published: undefined, tableCount: undefined })}::jsonb,
-              now(), now())
-      RETURNING id, created_at`;
-    return Response.json(
-      {
+    const payload = {
+      id: crypto.randomUUID(),
+      owner: uid,
+      slug: c.slug,
+      name: c.name,
+      location: c.location ?? "",
+      social: c.socialLinks ?? {},
+      published: c.published,
+      table_count: c.tableCount ?? 0,
+      data: {
         ...c,
-        id: row.id,
-        createdAt: new Date(row.created_at).toISOString(),
+        name: undefined,
+        slug: undefined,
+        location: undefined,
+        socialLinks: undefined,
+        published: undefined,
+        tableCount: undefined,
       },
+    };
+    const { data, error } = await asUser(userJwt(request))
+      .from("cafes")
+      .insert(payload)
+      .select("id, created_at")
+      .single();
+    if (error) {
+      if (isUniqueViolation(error))
+        return Response.json(
+          { error: "Bu menü adresi kullanılıyor. Başka bir adres seçin." },
+          { status: 409 },
+        );
+      throw error;
+    }
+    return Response.json(
+      { ...c, id: data.id, createdAt: data.created_at },
       { status: 201 },
     );
   } catch (e) {

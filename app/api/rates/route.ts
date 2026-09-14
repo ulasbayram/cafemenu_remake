@@ -1,14 +1,18 @@
-import { db, fail } from "@/lib/server";
+import { svc } from "@/db";
+import { fail } from "@/lib/server";
 
 type RateRow = { USD: number; EUR: number; date: string; source: string };
 
 export async function GET() {
   try {
-    const sql = db();
-    const [old] = await sql`
-      SELECT data, fetched_at FROM rates WHERE key = 'TRY' LIMIT 1`;
-    if (old && Date.now() - new Date(old.fetched_at).getTime() < 6 * 3600000)
-      return Response.json({ ...(old.data as RateRow), stale: false });
+    const { data: old, error: oldErr } = await svc()
+      .from("rates")
+      .select("data, fetched_at")
+      .eq("key", "TRY")
+      .limit(1);
+    if (oldErr) throw oldErr;
+    if (old?.[0] && Date.now() - new Date(old[0].fetched_at).getTime() < 6 * 3600000)
+      return Response.json({ ...old[0].data, stale: false });
     try {
       const response = await fetch(
         "https://api.frankfurter.dev/v2/rates?base=TRY&quotes=USD,EUR&providers=ECB",
@@ -30,13 +34,16 @@ export async function GET() {
         date: usd.date,
         source: "ECB · Frankfurter",
       };
-      await sql`
-        INSERT INTO rates (key, data, fetched_at) VALUES ('TRY', ${JSON.stringify(data)}::jsonb, now())
-        ON CONFLICT (key) DO UPDATE SET data = excluded.data, fetched_at = excluded.fetched_at`;
+      const { error } = await svc()
+        .from("rates")
+        .upsert(
+          { key: "TRY", data, fetched_at: new Date().toISOString() },
+          { onConflict: "key" },
+        );
+      if (error) throw error;
       return Response.json({ ...data, stale: false });
     } catch (e) {
-      if (old)
-        return Response.json({ ...(old.data as RateRow), stale: true });
+      if (old?.[0]) return Response.json({ ...old[0].data, stale: true });
       console.error(e);
       return Response.json(
         {

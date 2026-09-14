@@ -1,23 +1,19 @@
-import { db, fail } from "@/lib/server";
+import { svc } from "@/db";
 import { verifyAdmin } from "@/lib/jwt";
+import { fail } from "@/lib/server";
 
 export async function GET(request: Request) {
   try {
     if (!(await verifyAdmin(request)))
       return Response.json({ error: "Bu sayfa size ait değil." }, { status: 403 });
-    const sql = db();
-    const rows = await sql`
-      SELECT u.id, u.email, u.created_at,
-             (SELECT COUNT(*)::int FROM cafes c WHERE c.owner = u.id) AS cafes
-      FROM auth.users u
-      ORDER BY u.created_at DESC
-      LIMIT 500`;
+    const { data, error } = await svc().rpc("admin_users");
+    if (error) throw error;
     return Response.json(
-      rows.map((r) => ({
+      data.map((r: { id: string; email: string; created_at: string; cafes: number }) => ({
         id: r.id,
         email: r.email,
         cafes: Number(r.cafes),
-        createdAt: new Date(r.created_at).toISOString(),
+        createdAt: r.created_at,
       })),
     );
   } catch (e) {
