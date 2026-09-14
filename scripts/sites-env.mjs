@@ -18,15 +18,29 @@ if (existsSync(envPath)) {
 
 // Expose server env to the Workers runtime via globalThis (db/jwt read FINCAN_*).
 const g = globalThis;
-for (const key of [
+const envKeys = [
   "DATABASE_URL",
   "SUPABASE_URL",
-  "SUPABASE_ANON_KEY",
+  "SUPABASE_SECRET_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",
   "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
   "DOMAIN_NAME",
-]) {
+];
+// Normalize: if only the legacy anon key is set, expose it as PUBLISHABLE too.
+if (
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+  !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+)
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+if (
+  process.env.SUPABASE_SERVICE_ROLE_KEY &&
+  !process.env.SUPABASE_SECRET_KEY
+)
+  process.env.SUPABASE_SECRET_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+for (const key of envKeys) {
   const value = process.env[key];
   if (value) {
     // Workers code reads FINCAN_<NAME> and plain NEXT_PUBLIC_*.

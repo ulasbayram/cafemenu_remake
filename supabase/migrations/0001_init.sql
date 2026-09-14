@@ -45,8 +45,8 @@ alter table public.rates enable row level security;
 drop policy if exists "cafes_owner_all" on public.cafes;
 create policy "cafes_owner_all" on public.cafes
   for all to authenticated
-  using (owner = auth.uid())
-  with check (owner = auth.uid());
+  using ((select auth.uid()) = owner)
+  with check ((select auth.uid()) = owner);
 
 drop policy if exists "visits_owner_read" on public.visits;
 create policy "visits_owner_read" on public.visits
@@ -54,7 +54,7 @@ create policy "visits_owner_read" on public.visits
   using (
     exists (
       select 1 from public.cafes c
-      where c.id = visits.cafe and c.owner = auth.uid()
+      where c.id = visits.cafe and (select auth.uid()) = c.owner
     )
   );
 
@@ -71,6 +71,8 @@ create policy "rates_public_read" on public.rates
   using (true);
 
 -- ─── Storage: menu-images bucket ─────────────────────────────────────────────
+-- If this INSERT errors (storage schema restrictions), create the bucket in
+-- the dashboard instead: Storage → New bucket → "menu-images" → Public.
 insert into storage.buckets (id, name, public)
 values ('menu-images', 'menu-images', true)
 on conflict (id) do nothing;
@@ -85,7 +87,7 @@ create policy "menu_images_owner_write" on storage.objects
   for insert to authenticated
   with check (
     bucket_id = 'menu-images'
-    and (storage.foldername(name))[1] = auth.uid()::text
+    and (storage.foldername(name))[1] = (select auth.uid())::text
   );
 
 drop policy if exists "menu_images_owner_delete" on storage.objects;
@@ -93,7 +95,7 @@ create policy "menu_images_owner_delete" on storage.objects
   for delete to authenticated
   using (
     bucket_id = 'menu-images'
-    and (storage.foldername(name))[1] = auth.uid()::text
+    and (storage.foldername(name))[1] = (select auth.uid())::text
   );
 
 -- ─── updated_at trigger ──────────────────────────────────────────────────────

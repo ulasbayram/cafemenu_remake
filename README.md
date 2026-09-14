@@ -50,8 +50,8 @@ node scripts/editor-state-test.mjs && node scripts/logo-test.mjs && node scripts
 1. Supabase projesi (Frankfurt) + Google OAuth + şifre doğrulama (min 12 karakter)
 2. Migration: `supabase/migrations/0001_init.sql` (tablolar + RLS + Storage bucket)
 3. GitHub repo → Actions secret'ları: `NEXT_PUBLIC_SUPABASE_URL`,
-   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
-   `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `DOMAIN_NAME`,
+   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_URL`,
+   `SUPABASE_SECRET_KEY`, `DATABASE_URL`, `DOMAIN_NAME`,
    `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`
 4. Push → workflow typecheck + build + `wrangler deploy`
 5. Alan adı: Cloudflare DNS → Workers custom domain
