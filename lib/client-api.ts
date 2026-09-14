@@ -5,12 +5,13 @@ import { supabase } from "@/lib/supabase-browser";
 export async function api<T>(
   path: string,
   body?: unknown,
-  method = "POST",
+  method?: "GET" | "POST" | "PUT",
 ): Promise<T> {
   const { data } = await supabase().auth.getSession();
   const token = data.session?.access_token;
+  const verb = method ?? (body !== undefined ? "POST" : "GET");
   const r = await fetch(path, {
-    method: body !== undefined || method !== "GET" ? method : "GET",
+    method: verb,
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
