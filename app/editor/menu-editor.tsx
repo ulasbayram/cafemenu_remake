@@ -30,11 +30,13 @@ import {
   GripVertical,
   X,
   LoaderCircle,
+  Camera,
 } from "lucide-react";
 import { menuCategories, type Cafe, type Item } from "@/lib/menu";
 import MenuView, { type MenuBlock } from "../menu-view";
 import ThemeToggle from "../theme-toggle";
-import { prepareLogo } from "@/lib/logo";
+import { prepareLogo, preparePhoto } from "@/lib/logo";
+import { uploadImage } from "@/lib/storage";
 import { useMenuTheme } from "../use-menu-theme";
 import { useHistory } from "./use-history";
 import { reorderItems } from "@/lib/editor-state";
@@ -135,10 +137,11 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
     setLogoBusy(true);
     setError("");
     try {
-      const { logo, palette, defaultTheme, logoSurface } =
+      const { blob, palette, defaultTheme, logoSurface } =
         await prepareLogo(file);
+      const logoUrl = await uploadImage(blob, "logos");
       change({
-        logo,
+        logoUrl,
         logoPalette: palette,
         defaultTheme,
         logoSurface,
@@ -154,10 +157,10 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
     }
   }
   async function reanalyzeLogo() {
-    if (!cafe.logo) return;
+    if (!cafe.logoUrl) return;
     setLogoBusy(true);
     try {
-      const blob = await (await fetch(cafe.logo)).blob();
+      const blob = await (await fetch(cafe.logoUrl)).blob();
       await uploadLogo(new File([blob], "kafe-logosu", { type: blob.type }));
     } catch {
       setError("Logo analiz edilemedi. Görseli yeniden yükleyebilirsiniz.");
@@ -795,7 +798,7 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
             {selection === "header" && (
               <>
                 <span className="inspector-kicker">İLK KARŞILAMA</span>
-                {cafe.logo && (
+                {cafe.logoUrl && (
                   <label>
                     Logo boyutu
                     <select
@@ -816,7 +819,7 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
                 <div className="logo-controls">
                   <label>
                     Kafe logosu
-                    {cafe.logo && (
+                    {cafe.logoUrl && (
                       <button
                         className="btn btn-secondary"
                         disabled={logoBusy}
@@ -825,10 +828,10 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
                         Logoyu yeniden analiz et
                       </button>
                     )}
-                    {cafe.logo && (
+                    {cafe.logoUrl && (
                       <img
                         className="logo-thumbnail"
-                        src={cafe.logo}
+                        src={cafe.logoUrl}
                         alt="Yüklenen kafe logosu"
                       />
                     )}
@@ -847,13 +850,13 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
                       ? "Logo hazırlanıyor…"
                       : "PNG, JPG veya WebP · En fazla 5 MB. Logonuzdan renkler otomatik seçilir; Kaydet ile yayınlanır."}
                   </p>
-                  {cafe.logo && (
+                  {cafe.logoUrl && (
                     <button
                       className="btn btn-secondary"
                       disabled={logoBusy}
                       onClick={() =>
                         change({
-                          logo: null,
+                          logoUrl: null,
                           logoPalette: null,
                           logoSurface: null,
                           defaultTheme: null,
@@ -967,6 +970,57 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
             {item && (
               <>
                 <span className="inspector-kicker">ÜRÜN İÇERİĞİ</span>
+                <label>
+                  Fotoğraf
+                  <div className="item-photo-field">
+                    {item.photo ? (
+                      <img src={item.photo} alt="" className="item-photo-preview" />
+                    ) : (
+                      <span className="item-photo-empty">
+                        <Camera size={20} />
+                      </span>
+                    )}
+                    <div className="item-photo-actions">
+                      <label className={`btn ${logoBusy ? "disabled" : ""}`}>
+                        {item.photo ? "Değiştir" : "Yükle"}
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          disabled={logoBusy}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = "";
+                            if (!file) return;
+                            setLogoBusy(true);
+                            setError("");
+                            try {
+                              const blob = await preparePhoto(file);
+                              const url = await uploadImage(blob, "photos");
+                              changeItem({ photo: url });
+                            } catch (err) {
+                              setError(
+                                err instanceof Error
+                                  ? err.message
+                                  : "Fotoğraf yüklenemedi.",
+                              );
+                            } finally {
+                              setLogoBusy(false);
+                            }
+                          }}
+                        />
+                      </label>
+                      {item.photo && (
+                        <button
+                          type="button"
+                          className="btn"
+                          onClick={() => changeItem({ photo: null })}
+                        >
+                          Kaldır
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </label>
                 <label>
                   Ürün adı
                   <input

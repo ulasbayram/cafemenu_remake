@@ -112,12 +112,36 @@ export async function prepareLogo(file: File) {
       canvas.width,
       canvas.height,
     );
-    const logo = canvas.toDataURL("image/webp", 0.82);
-    if (logo.length > 120000)
-      throw new Error(
-        "Logo çok detaylı. Daha sade veya küçük bir görsel seçin.",
-      );
-    return { logo, palette, defaultTheme, logoSurface };
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/webp", 0.82),
+    );
+    if (!blob) throw new Error("Logo işlenemedi.");
+    return { blob, palette, defaultTheme, logoSurface };
+  } finally {
+    bitmap.close();
+  }
+}
+
+export async function preparePhoto(file: File) {
+  if (!["image/png", "image/jpeg", "image/webp"].includes(file.type))
+    throw new Error("PNG, JPG veya WebP bir fotoğraf seçin.");
+  if (file.size > 10 * 1024 * 1024)
+    throw new Error("Fotoğraf en fazla 10 MB olabilir.");
+  const bitmap = await createImageBitmap(file);
+  try {
+    const canvas = document.createElement("canvas");
+    const factor = Math.min(1, 800 / Math.max(bitmap.width, bitmap.height));
+    canvas.width = Math.max(1, Math.round(bitmap.width * factor));
+    canvas.height = Math.max(1, Math.round(bitmap.height * factor));
+    const context = canvas.getContext("2d");
+    if (!context)
+      throw new Error("Bu tarayıcı fotoğraf işlemeyi desteklemiyor.");
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/webp", 0.8),
+    );
+    if (!blob) throw new Error("Fotoğraf işlenemedi.");
+    return blob;
   } finally {
     bitmap.close();
   }

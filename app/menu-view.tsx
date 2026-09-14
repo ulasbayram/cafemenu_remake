@@ -109,7 +109,7 @@ export default function MenuView({
           "--menu-accent": cafe.accent,
           "--logo-dark-surface":
             cafe.logoSurface ||
-            (detectedSurface?.logo === cafe.logo
+            (detectedSurface?.logo === cafe.logoUrl
               ? detectedSurface?.color
               : null) ||
             "#141414",
@@ -131,14 +131,14 @@ export default function MenuView({
       >
         {onSelectBlock && <span className="block-label">Başlık</span>}
         <span
-          className={`menu-emblem ${cafe.logo ? "has-logo" : ""} logo-${cafe.logoSize || "medium"}`}
+          className={`menu-emblem ${cafe.logoUrl ? "has-logo" : ""} logo-${cafe.logoSize || "medium"}`}
         >
-          {cafe.logo ? (
+          {cafe.logoUrl ? (
             <img
-              src={cafe.logo}
+              src={cafe.logoUrl}
               alt={`${cafe.name} logosu`}
               onLoad={(e) => {
-                if (cafe.logoSurface || !cafe.logo) return;
+                if (cafe.logoSurface || !cafe.logoUrl) return;
                 const canvas = document.createElement("canvas");
                 canvas.width = 64;
                 canvas.height = 64;
@@ -147,7 +147,7 @@ export default function MenuView({
                 try {
                   ctx.drawImage(e.currentTarget, 0, 0, 64, 64);
                   setDetectedSurface({
-                    logo: cafe.logo,
+                    logo: cafe.logoUrl,
                     color: logoSurfaceFromPixels(
                       ctx.getImageData(0, 0, 64, 64).data,
                       64,
@@ -263,6 +263,14 @@ export default function MenuView({
                     {onSelectBlock && <span className="block-label">Ürün</span>}
                     <span>
                       <strong>{item.name || "Yeni ürün"}</strong>
+                      {item.photo && (
+                        <img
+                          className="item-photo"
+                          src={item.photo}
+                          alt=""
+                          loading="lazy"
+                        />
+                      )}
                       <small>{item.description}</small>
                       {!item.available && <em>Menüde gizli</em>}
                     </span>

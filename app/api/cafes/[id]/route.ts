@@ -1,21 +1,26 @@
 import { db, owner, fail, sameOrigin } from "@/lib/server";
 import { cafeSchema } from "@/lib/menu";
+
+const UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function PUT(
-  req: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const uid = await owner();
-    if (!sameOrigin(req))
+    const uid = await owner(request);
+    if (!sameOrigin(request))
       return Response.json({ error: "Geçersiz istek." }, { status: 403 });
     const { id } = await params;
-    const existing = await db()
-      .prepare("SELECT * FROM cafes WHERE id=? AND owner=?")
-      .bind(id, uid)
-      .first();
+    if (!UUID.test(id))
+      return Response.json({ error: "Kafe bulunamadı." }, { status: 404 });
+    const sql = db();
+    const [existing] = await sql`
+      SELECT id, slug, created_at FROM cafes WHERE id = ${id} AND owner = ${uid}`;
     if (!existing)
       return Response.json({ error: "Kafe bulunamadı." }, { status: 404 });
-    const result = cafeSchema.safeParse(await req.json());
+    const result = cafeSchema.safeParse(await request.json());
     if (!result.success)
       return Response.json(
         { error: result.error.issues[0].message },
@@ -29,16 +34,24 @@ export async function PUT(
         },
         { status: 400 },
       );
-    await db()
-      .prepare("UPDATE cafes SET name=?,data=? WHERE id=? AND owner=?")
-      .bind(result.data.name, JSON.stringify(result.data), id, uid)
-      .run();
+    const c = result.data;
+    await sql`
+      UPDATE cafes SET
+        name = ${c.name},
+        location = ${c.location ?? ""},
+        social = ${JSON.stringify(c.socialLinks ?? {})}::jsonb,
+        published = ${c.published},
+        table_count = ${c.tableCount ?? 0},
+        data = ${JSON.stringify({ ...c, name: undefined, slug: undefined, location: undefined, socialLinks: undefined, published: undefined, tableCount: undefined })}::jsonb,
+        updated_at = now()
+      WHERE id = ${id} AND owner = ${uid}`;
     return Response.json({
-      ...result.data,
+      ...c,
       id,
-      createdAt: existing.created_at,
+      createdAt: new Date(existing.created_at).toISOString(),
     });
   } catch (e) {
     return fail(e);
   }
 }
+export const dynamic = "force-dynamic";

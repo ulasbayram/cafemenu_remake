@@ -4,7 +4,13 @@ import { Sun, Moon } from "lucide-react";
 import type { Cafe } from "@/lib/menu";
 import { useMenuTheme } from "./use-menu-theme";
 import MenuView, { type Rates } from "./menu-view";
-export default function PublicMenu({ cafe }: { cafe: Cafe }) {
+export default function PublicMenu({
+  cafe,
+  table,
+}: {
+  cafe: Cafe;
+  table?: number | null;
+}) {
   const [rates, setRates] = useState<Rates | null>(null),
     [currency, setCurrency] = useState("TRY"),
     [rateError, setRateError] = useState("");
@@ -29,10 +35,14 @@ export default function PublicMenu({ cafe }: { cafe: Cafe }) {
       fetch("/api/visit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cafe: cafe.id, visitor }),
+        body: JSON.stringify({
+          cafe: cafe.id,
+          visitor,
+          ...(table ? { table } : {}),
+        }),
       }).catch(() => {});
     } catch {}
-  }, [cafe.id]);
+  }, [cafe.id, table]);
   return (
     <main
       className="public-shell"

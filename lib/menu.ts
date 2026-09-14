@@ -7,8 +7,10 @@ export const itemSchema = z.object({
   price: z.number().finite().min(0).max(1000000),
   category: z.string().trim().min(1).max(60),
   available: z.boolean(),
+  photo: z.string().url().max(500).nullable().optional(),
 });
 export const cafeSchema = z.object({
+  tableCount: z.number().int().min(0).max(200).optional(),
   socialLinks: socialLinksSchema.optional(),
   defaultTheme: z.enum(["light", "dark"]).nullable().optional(),
   logoSize: z.enum(["small", "medium", "large"]).optional(),
@@ -23,26 +25,12 @@ export const cafeSchema = z.object({
     .regex(/^[a-z][a-z0-9-]{2,59}$/)
     .refine(
       (s) =>
-        ![
-          "api",
-          "admin",
-          "signin-with-chatgpt",
-          "signout-with-chatgpt",
-          "callback",
-          "favicon",
-          "login",
-          "editor",
-        ].includes(s),
+        !["api", "admin", "auth", "favicon", "login", "editor"].includes(s),
       "Bu adres kullanılamaz.",
     ),
   subtitle: z.string().max(150),
   location: z.string().max(150),
-  logo: z
-    .string()
-    .max(120000)
-    .regex(/^data:image\/(?:webp|png);base64,[A-Za-z0-9+/]+={0,2}$/)
-    .nullable()
-    .optional(),
+  logoUrl: z.string().url().max(500).nullable().optional(),
   logoPalette: z
     .object({
       accent: z.string().regex(/^#[0-9a-fA-F]{6}$/),
@@ -78,7 +66,11 @@ export function menuCategories(
     ]),
   ];
 }
-export type Cafe = CafeData & { id: string; createdAt: string };
+export type Cafe = CafeData & {
+  id: string;
+  createdAt: string;
+  tableCount: number;
+};
 export type Item = z.infer<typeof itemSchema>;
 export const sampleItems: Item[] = [
   {
@@ -140,6 +132,7 @@ export const exampleCafe: Cafe = {
   accent: "#245b46",
   style: "classic",
   published: false,
+  tableCount: 0,
   items: sampleItems,
 };
 export function slugify(s: string) {

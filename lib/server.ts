@@ -1,14 +1,16 @@
-import { env } from "cloudflare:workers";
-import { currentUser } from "./auth";
-export function db() {
-  if (!env.DB) throw new Error("Veritabanı bağlantısı hazır değil.");
-  return env.DB;
+import { db } from "@/db";
+import { verifyRequest } from "@/lib/jwt";
+
+export { db };
+export type Sql = Awaited<ReturnType<typeof db>>;
+
+/** Throws UNAUTHORIZED if no valid user token; returns the user id. */
+export async function owner(request: Request): Promise<string> {
+  const user = await verifyRequest(request);
+  if (!user) throw new Error("UNAUTHORIZED");
+  return user.id;
 }
-export async function owner() {
-  const u = await currentUser();
-  if (!u) throw new Error("UNAUTHORIZED");
-  return u.id;
-}
+
 export function fail(e: unknown) {
   console.error(e);
   const auth = e instanceof Error && e.message === "UNAUTHORIZED";
@@ -21,6 +23,9 @@ export function fail(e: unknown) {
     { status: auth ? 401 : 500 },
   );
 }
+
 export function sameOrigin(r: Request) {
-  return r.headers.get("origin") === new URL(r.url).origin;
+  const origin = r.headers.get("origin");
+  if (!origin) return true;
+  return origin === new URL(r.url).origin;
 }

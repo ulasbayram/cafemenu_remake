@@ -1,9 +1,40 @@
 import { mkdirSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const runtimeRoot = process.env.SITES_RUNTIME_ROOT || path.join(projectRoot, ".sites-runtime");
+
+// Load .env secrets into process.env for local `npm start` (workerd).
+const envPath = path.join(projectRoot, ".env");
+if (existsSync(envPath)) {
+  for (const line of readFileSync(envPath, "utf8").split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+    if (m && !line.trim().startsWith("#") && !process.env[m[1]])
+      process.env[m[1]] = m[2];
+  }
+}
+
+// Expose server env to the Workers runtime via globalThis (db/jwt read FINCAN_*).
+const g = globalThis;
+for (const key of [
+  "DATABASE_URL",
+  "SUPABASE_URL",
+  "SUPABASE_ANON_KEY",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  "DOMAIN_NAME",
+]) {
+  const value = process.env[key];
+  if (value) {
+    // Workers code reads FINCAN_<NAME> and plain NEXT_PUBLIC_*.
+    if (key.startsWith("NEXT_PUBLIC_")) g[`FINCAN_${key.replace("NEXT_PUBLIC_", "")}`] = value;
+    g[`FINCAN_${key}`] = value;
+    // jwt.ts/env() also checks process.env directly.
+  }
+}
 
 process.env.CLOUDFLARE_CF_FETCH_ENABLED ||= "false";
 process.env.WRANGLER_SEND_METRICS ||= "false";
