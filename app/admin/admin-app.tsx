@@ -1,17 +1,34 @@
 "use client";
-import { useEffect, useState } from "react";
+
+/* eslint-disable @next/next/no-img-element -- Cafe logos are user-provided public Storage URLs. */
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
+  Activity,
+  ArrowRight,
+  BarChart3,
+  Building2,
+  CalendarDays,
+  ChevronRight,
+  CircleGauge,
+  ExternalLink,
+  Eye,
   LayoutDashboard,
+  LoaderCircle,
+  LogOut,
+  MapPin,
+  Search,
+  ShieldCheck,
   Store,
   Users,
-  ChartNoAxesCombined,
-  LogOut,
-  LoaderCircle,
+  UtensilsCrossed,
+  X,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase-browser";
 import { useAdminApi } from "@/lib/admin-api";
 
+type Tab = "overview" | "cafes" | "users";
 type Overview = {
   cafes: number;
   publishedCafes: number;
@@ -29,240 +46,586 @@ type AdminCafe = {
   id: string;
   slug: string;
   name: string;
+  subtitle: string;
+  location: string;
+  logoUrl: string | null;
   published: boolean;
   tableCount: number;
+  itemCount: number;
+  ownerId: string;
   ownerEmail: string | null;
   visitsTotal: number;
   lastVisit: string | null;
   createdAt: string;
+  updatedAt: string;
 };
 type AdminUser = {
   id: string;
   email: string;
   cafes: number;
   createdAt: string;
+  lastSignInAt: string | null;
 };
+
+function formatDate(value: string | null, withTime = false) {
+  if (!value) return "Henüz yok";
+  return new Intl.DateTimeFormat("tr-TR", {
+    dateStyle: "medium",
+    ...(withTime ? { timeStyle: "short" } : {}),
+  }).format(new Date(value));
+}
 
 export default function AdminApp() {
   const api = useAdminApi();
-  const [tab, setTab] = useState<"overview" | "cafes" | "users">("overview");
-  const [email, setEmail] = useState<string | null>(null);
+  const router = useRouter();
+  const [auth, setAuth] = useState<"loading" | "denied" | "ready">("loading");
+  const [adminEmail, setAdminEmail] = useState("");
+  const [accessError, setAccessError] = useState("");
+  const [tab, setTab] = useState<Tab>("overview");
   const [overview, setOverview] = useState<Overview | null>(null);
   const [cafes, setCafes] = useState<AdminCafe[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
+  const [selectedCafe, setSelectedCafe] = useState<AdminCafe | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    let active = true;
     (async () => {
       try {
         const { data } = await supabase().auth.getSession();
-        const user = data.session?.user;
-        if (!user) {
-          window.location.assign(
-            new URL("/login", window.location.origin).href,
-          );
+        if (!active) return;
+        if (!data.session) {
+          router.replace("/login?next=%2Fadmin");
           return;
         }
-        const role = (user.app_metadata as Record<string, unknown>)?.role;
-        if (role !== "admin") {
-          window.location.assign(new URL("/", window.location.origin).href);
-          return;
-        }
-        if (!cancelled) setEmail(user.email ?? "");
-      } catch {
-        window.location.assign(
-          new URL("/login", window.location.origin).href,
+        setAdminEmail(data.session.user.email ?? "Kullanıcı");
+        const admin = await api<{ id: string; email: string }>(
+          "/api/admin/session",
         );
+        if (!active) return;
+        setAdminEmail(admin.email || data.session.user.email || "Admin");
+        setAuth("ready");
+      } catch (reason) {
+        if (!active) return;
+        setAccessError((reason as Error).message);
+        setAuth("denied");
       }
     })();
     return () => {
-      cancelled = true;
+      active = false;
     };
-  }, []);
+  }, [api, router]);
+
+  const loadTab = useCallback(async () => {
+    if (auth !== "ready") return;
+    setLoading(true);
+    setError("");
+    try {
+      if (tab === "overview")
+        setOverview(await api<Overview>("/api/admin/overview"));
+      if (tab === "cafes")
+        setCafes(
+          await api<AdminCafe[]>(
+            `/api/admin/cafes${query ? `?search=${encodeURIComponent(query)}` : ""}`,
+          ),
+        );
+      if (tab === "users") setUsers(await api<AdminUser[]>("/api/admin/users"));
+    } catch (reason) {
+      setError((reason as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [api, auth, query, tab]);
 
   useEffect(() => {
-    if (!email) return;
-    let active = true;
-    async function load() {
-      setLoading(true);
-      try {
-        if (tab === "overview" && !overview)
-          setOverview(await api<Overview>("/api/admin/overview"));
-        if (tab === "cafes")
-          setCafes(
-            await api<AdminCafe[]>(
-              `/api/admin/cafes${query ? `?search=${encodeURIComponent(query)}` : ""}`,
-            ),
-          );
-        if (tab === "users") setUsers(await api<AdminUser[]>("/api/admin/users"));
-      } catch (e) {
-        if (active) setError((e as Error).message);
-      } finally {
-        if (active) setLoading(false);
-      }
-    }
-    const t = setTimeout(load, query ? 300 : 0);
-    return () => {
-      active = false;
-      clearTimeout(t);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, email, query]);
+    const timer = setTimeout(
+      () => void loadTab(),
+      tab === "cafes" && query ? 250 : 0,
+    );
+    return () => clearTimeout(timer);
+  }, [loadTab, query, tab]);
 
-  if (!email)
+  if (auth === "loading")
     return (
-      <main className="admin-shell">
-        <LoaderCircle className="spin" size={28} />
+      <main className="admin-loading-screen">
+        <LoaderCircle className="spin" size={30} />
+        <span>Güvenli oturum kontrol ediliyor…</span>
+      </main>
+    );
+
+  if (auth === "denied")
+    return (
+      <main className="admin-login-page">
+        <section className="admin-login-story">
+          <div className="admin-wordmark">
+            <span>
+              <ShieldCheck size={22} />
+            </span>
+            fincan <b>control</b>
+          </div>
+          <div>
+            <span className="admin-eyebrow">OPERASYON MERKEZİ</span>
+            <h1>
+              Tüm kafeler,
+              <br />
+              tek güvenli panel.
+            </h1>
+            <p>
+              Hesap durumlarını izleyin, destek taleplerinde menüye doğrudan
+              yardımcı olun ve platform hareketini takip edin.
+            </p>
+          </div>
+          <small>Yetkili ekip erişimi · İşlemler sunucuda doğrulanır</small>
+        </section>
+        <section className="admin-login-main">
+          <div className="admin-login-card admin-access-card">
+            <span className="admin-login-icon">
+              <ShieldCheck size={23} />
+            </span>
+            <span className="admin-eyebrow">ERİŞİM REDDEDİLDİ</span>
+            <h2>Bu hesabın admin yetkisi yok.</h2>
+            <p>
+              <strong>{adminEmail}</strong> normal kullanıcı olarak giriş
+              yapmış. Admin paneli yalnızca önceden belirlenen iki hesaba
+              açıktır.
+            </p>
+            <div className="admin-login-error" role="alert">
+              {accessError}
+            </div>
+            <Link href="/" className="admin-primary-button admin-login-submit">
+              Uygulamaya dön <ArrowRight size={17} />
+            </Link>
+            <button
+              className="admin-back-link"
+              onClick={async () => {
+                await supabase().auth.signOut();
+                router.push("/login?next=%2Fadmin");
+              }}
+            >
+              Farklı hesapla normal giriş yap
+            </button>
+          </div>
+        </section>
       </main>
     );
 
   return (
-    <main className="admin-shell">
-      <header className="admin-header">
-        <div className="admin-brand">
+    <main className="admin-console">
+      <aside className="admin-sidebar">
+        <div className="admin-wordmark">
           <span>
-            <LayoutDashboard size={20} />
+            <ShieldCheck size={20} />
           </span>
-          fincan admin
+          fincan <b>control</b>
         </div>
-        <nav className="admin-nav">
+        <nav aria-label="Admin navigasyonu">
           <button
             className={tab === "overview" ? "active" : ""}
             onClick={() => setTab("overview")}
           >
-            <ChartNoAxesCombined size={16} /> Genel bakış
+            <LayoutDashboard size={18} /> Genel bakış
           </button>
           <button
             className={tab === "cafes" ? "active" : ""}
             onClick={() => setTab("cafes")}
           >
-            <Store size={16} /> Kafeler
+            <Store size={18} /> Kafe hesapları
           </button>
           <button
             className={tab === "users" ? "active" : ""}
             onClick={() => setTab("users")}
           >
-            <Users size={16} /> Kullanıcılar
+            <Users size={18} /> Kullanıcılar
           </button>
         </nav>
-        <div className="admin-actions">
-          <Link href="/">Uygulamaya dön</Link>
+        <div className="admin-sidebar-foot">
+          <span>{adminEmail}</span>
           <button
             onClick={async () => {
               await supabase().auth.signOut();
-              window.location.assign("/login");
+              router.push("/login");
             }}
           >
-            <LogOut size={15} /> Çıkış
+            <LogOut size={16} /> Güvenli çıkış
           </button>
         </div>
-      </header>
-      <span className="admin-user">{email}</span>
-      {error && (
-        <div className="error-banner" role="alert">
-          {error}
-        </div>
-      )}
-      {loading && !overview && tab === "overview" ? (
-        <LoaderCircle className="spin" size={24} />
-      ) : tab === "overview" && overview ? (
-        <section className="admin-grid">
-          {[
-            ["Kafe", `${overview.cafes}`],
-            ["Yayında", `${overview.publishedCafes}`],
-            ["Son 7 gün yeni kafe", `${overview.newCafes7d}`],
-            ["Toplam ziyaret", `${overview.visitsTotal}`],
-            ["Ziyaret (7g)", `${overview.visits7d}`],
-            ["Ziyaret (30g)", `${overview.visits30d}`],
-            ["Aktif kafe (30g)", `${overview.activeCafes30d}`],
-            ["Kullanıcı", `${overview.users}`],
-            ["Yeni kullanıcı (7g)", `${overview.newUsers7d}`],
-          ].map(([label, value]) => (
-            <div className="admin-kpi" key={label}>
-              <strong>{value}</strong>
-              <span>{label}</span>
-            </div>
-          ))}
-          <div className="admin-note">
-            Kur önbelleği son güncelleme:{" "}
-            {overview.ratesFetchedAt
-              ? new Date(overview.ratesFetchedAt).toLocaleString("tr-TR")
-              : "henüz yok"}
+      </aside>
+
+      <section className="admin-workspace">
+        <header className="admin-topbar">
+          <div>
+            <span className="admin-eyebrow">
+              {tab === "overview"
+                ? "PLATFORM SAĞLIĞI"
+                : tab === "cafes"
+                  ? "CANLI DESTEK"
+                  : "HESAP YÖNETİMİ"}
+            </span>
+            <h1>
+              {tab === "overview"
+                ? "Genel bakış"
+                : tab === "cafes"
+                  ? "Kafe hesapları"
+                  : "Kullanıcılar"}
+            </h1>
           </div>
-          <div className="admin-chart">
-            <h3>Son 30 gün ziyaretleri</h3>
-            <div className="admin-bars">
-              {overview.series.map((d) => (
-                <div key={d.day} title={`${d.day}: ${d.count}`}>
-                  <i style={{ height: `${Math.min(100, d.count * 4)}%` }} />
-                </div>
-              ))}
-            </div>
+          <div className="admin-topbar-actions">
+            <span className="admin-live">
+              <i /> Sistem aktif
+            </span>
+            <Link href="/" target="_blank">
+              Kafe uygulamasını aç <ExternalLink size={14} />
+            </Link>
           </div>
-        </section>
-      ) : tab === "cafes" ? (
-        <section>
-          <input
-            className="admin-search"
-            placeholder="Kafe adı, adres veya sahip e-postası ara…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+        </header>
+
+        {error && (
+          <div className="admin-error" role="alert">
+            {error}
+            <button onClick={() => void loadTab()}>Tekrar dene</button>
+          </div>
+        )}
+        {loading && (
+          <div className="admin-progress">
+            <i />
+          </div>
+        )}
+
+        {tab === "overview" && (
+          <OverviewPanel
+            overview={overview}
+            onOpenCafes={() => setTab("cafes")}
           />
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Kafe</th>
-                <th>Adres</th>
-                <th>Sahip</th>
-                <th>Durum</th>
-                <th>Masa</th>
-                <th>Ziyaret</th>
-                <th>Son ziyaret</th>
-              </tr>
-            </thead>
-            <tbody>
-              {cafes.map((c) => (
-                <tr key={c.id}>
-                  <td>{c.name}</td>
-                  <td>
-                    <a href={`/${c.slug}`} target="_blank" rel="noreferrer">
-                      /{c.slug}
-                    </a>
-                  </td>
-                  <td>{c.ownerEmail || "—"}</td>
-                  <td>{c.published ? "Yayında" : "Taslak"}</td>
-                  <td>{c.tableCount}</td>
-                  <td>{c.visitsTotal}</td>
-                  <td>{c.lastVisit || "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      ) : (
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>E-posta</th>
-              <th>Kafe sayısı</th>
-              <th>Kayıt tarihi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((u) => (
-              <tr key={u.id}>
-                <td>{u.email}</td>
-                <td>{u.cafes}</td>
-                <td>{new Date(u.createdAt).toLocaleDateString("tr-TR")}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        )}
+        {tab === "cafes" && (
+          <CafePanel
+            cafes={cafes}
+            query={query}
+            setQuery={setQuery}
+            loading={loading}
+            onSelect={setSelectedCafe}
+          />
+        )}
+        {tab === "users" && <UsersPanel users={users} />}
+      </section>
+
+      {selectedCafe && (
+        <CafeDrawer cafe={selectedCafe} onClose={() => setSelectedCafe(null)} />
       )}
     </main>
+  );
+}
+
+function OverviewPanel({
+  overview,
+  onOpenCafes,
+}: {
+  overview: Overview | null;
+  onOpenCafes: () => void;
+}) {
+  const max = Math.max(
+    1,
+    ...(overview?.series.map((entry) => entry.count) ?? [1]),
+  );
+  if (!overview)
+    return (
+      <div className="admin-skeleton-grid">
+        <i />
+        <i />
+        <i />
+        <i />
+      </div>
+    );
+  const metrics = [
+    {
+      label: "Toplam kafe",
+      value: overview.cafes,
+      note: `${overview.newCafes7d} yeni / 7 gün`,
+      icon: Building2,
+    },
+    {
+      label: "Yayındaki menü",
+      value: overview.publishedCafes,
+      note: `${overview.cafes - overview.publishedCafes} taslak`,
+      icon: Eye,
+    },
+    {
+      label: "Son 7 gün ziyaret",
+      value: overview.visits7d,
+      note: `${overview.visitsTotal} toplam`,
+      icon: Activity,
+    },
+    {
+      label: "Aktif kafe",
+      value: overview.activeCafes30d,
+      note: "son 30 gün",
+      icon: CircleGauge,
+    },
+  ];
+  return (
+    <div className="admin-overview">
+      <section className="admin-metric-grid">
+        {metrics.map(({ label, value, note, icon: Icon }) => (
+          <article className="admin-metric" key={label}>
+            <span>
+              <Icon size={19} />
+            </span>
+            <div>
+              <small>{label}</small>
+              <strong>{value.toLocaleString("tr-TR")}</strong>
+              <p>{note}</p>
+            </div>
+          </article>
+        ))}
+      </section>
+      <section className="admin-overview-grid">
+        <article className="admin-panel admin-chart-panel">
+          <header>
+            <div>
+              <span className="admin-eyebrow">TRAFİK</span>
+              <h2>Son 30 gün ziyaretleri</h2>
+            </div>
+            <strong>{overview.visits30d.toLocaleString("tr-TR")}</strong>
+          </header>
+          <div
+            className="admin-bars"
+            aria-label="Son 30 günlük ziyaret grafiği"
+          >
+            {overview.series.map((entry) => (
+              <i
+                key={entry.day}
+                title={`${formatDate(entry.day)}: ${entry.count}`}
+                style={{ height: `${Math.max(4, (entry.count / max) * 100)}%` }}
+              />
+            ))}
+          </div>
+        </article>
+        <article className="admin-panel admin-quick-panel">
+          <span className="admin-eyebrow">OPERASYON</span>
+          <h2>Hızlı görünüm</h2>
+          <div>
+            <span>
+              <Users size={17} /> Toplam kullanıcı
+            </span>
+            <strong>{overview.users}</strong>
+          </div>
+          <div>
+            <span>
+              <CalendarDays size={17} /> Yeni kullanıcı · 7 gün
+            </span>
+            <strong>{overview.newUsers7d}</strong>
+          </div>
+          <div>
+            <span>
+              <BarChart3 size={17} /> Kur verisi
+            </span>
+            <strong>{formatDate(overview.ratesFetchedAt, true)}</strong>
+          </div>
+          <button onClick={onOpenCafes}>
+            Kafe hesaplarını incele <ChevronRight size={16} />
+          </button>
+        </article>
+      </section>
+    </div>
+  );
+}
+
+function CafePanel({
+  cafes,
+  query,
+  setQuery,
+  loading,
+  onSelect,
+}: {
+  cafes: AdminCafe[];
+  query: string;
+  setQuery: (value: string) => void;
+  loading: boolean;
+  onSelect: (cafe: AdminCafe) => void;
+}) {
+  return (
+    <div className="admin-cafes-view">
+      <div className="admin-cafes-toolbar">
+        <label className="admin-search">
+          <Search size={17} />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Kafe, adres veya hesap e-postası ara"
+          />
+        </label>
+        <span>{cafes.length} hesap gösteriliyor</span>
+      </div>
+      {!loading && cafes.length === 0 ? (
+        <div className="admin-empty">
+          <Store size={28} />
+          <h2>Kafe bulunamadı</h2>
+          <p>Arama ifadenizi değiştirip tekrar deneyin.</p>
+        </div>
+      ) : (
+        <section className="admin-cafe-grid">
+          {cafes.map((cafe) => (
+            <article className="admin-cafe-card" key={cafe.id}>
+              <div className="admin-cafe-cover">
+                <span className="admin-cafe-logo">
+                  {cafe.logoUrl ? (
+                    <img src={cafe.logoUrl} alt="" />
+                  ) : (
+                    <Store size={24} />
+                  )}
+                </span>
+                <span
+                  className={
+                    cafe.published ? "admin-status published" : "admin-status"
+                  }
+                >
+                  <i />
+                  {cafe.published ? "Yayında" : "Taslak"}
+                </span>
+              </div>
+              <div className="admin-cafe-body">
+                <span className="admin-eyebrow">/{cafe.slug}</span>
+                <h2>{cafe.name}</h2>
+                <p>
+                  <MapPin size={14} /> {cafe.location || "Konum eklenmemiş"}
+                </p>
+                <div className="admin-cafe-owner">
+                  <span>Sahip hesap</span>
+                  <strong>{cafe.ownerEmail ?? "Bilinmiyor"}</strong>
+                </div>
+                <div className="admin-cafe-stats">
+                  <span>
+                    <b>{cafe.itemCount}</b> ürün
+                  </span>
+                  <span>
+                    <b>{cafe.visitsTotal}</b> ziyaret
+                  </span>
+                  <span>
+                    <b>{cafe.tableCount}</b> masa
+                  </span>
+                </div>
+              </div>
+              <footer>
+                <button onClick={() => onSelect(cafe)}>
+                  Bilgileri gör <Eye size={15} />
+                </button>
+                <Link
+                  className="admin-support-link"
+                  href={`/admin/editor/${cafe.id}`}
+                >
+                  Destek için düzenle <ArrowRight size={15} />
+                </Link>
+              </footer>
+            </article>
+          ))}
+        </section>
+      )}
+    </div>
+  );
+}
+
+function UsersPanel({ users }: { users: AdminUser[] }) {
+  return (
+    <section className="admin-panel admin-users-panel">
+      <header>
+        <div>
+          <span className="admin-eyebrow">KAYITLI HESAPLAR</span>
+          <h2>{users.length} kullanıcı</h2>
+        </div>
+      </header>
+      <div className="admin-users-list">
+        {users.map((user) => (
+          <article key={user.id}>
+            <span className="admin-user-avatar">
+              {user.email.slice(0, 1).toLocaleUpperCase("tr")}
+            </span>
+            <div>
+              <strong>{user.email}</strong>
+              <small>Kayıt: {formatDate(user.createdAt)}</small>
+            </div>
+            <span>
+              <b>{user.cafes}</b> kafe
+            </span>
+            <span>
+              Son giriş: <b>{formatDate(user.lastSignInAt, true)}</b>
+            </span>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CafeDrawer({
+  cafe,
+  onClose,
+}: {
+  cafe: AdminCafe;
+  onClose: () => void;
+}) {
+  const fields = [
+    ["Hesap sahibi", cafe.ownerEmail ?? "Bilinmiyor"],
+    ["Menü adresi", `/${cafe.slug}`],
+    ["Konum", cafe.location || "Eklenmemiş"],
+    ["Ürün sayısı", String(cafe.itemCount)],
+    ["Masa sayısı", String(cafe.tableCount)],
+    ["Toplam ziyaret", String(cafe.visitsTotal)],
+    ["Son ziyaret", formatDate(cafe.lastVisit)],
+    ["Son güncelleme", formatDate(cafe.updatedAt, true)],
+    ["Oluşturulma", formatDate(cafe.createdAt, true)],
+  ];
+  return (
+    <div className="admin-drawer-overlay" onMouseDown={onClose}>
+      <aside
+        className="admin-drawer"
+        onMouseDown={(event) => event.stopPropagation()}
+        aria-label={`${cafe.name} hesap bilgileri`}
+      >
+        <header>
+          <span className="admin-cafe-logo">
+            {cafe.logoUrl ? (
+              <img src={cafe.logoUrl} alt="" />
+            ) : (
+              <Store size={24} />
+            )}
+          </span>
+          <div>
+            <span className="admin-eyebrow">KAFE HESABI</span>
+            <h2>{cafe.name}</h2>
+          </div>
+          <button aria-label="Kapat" onClick={onClose}>
+            <X size={20} />
+          </button>
+        </header>
+        <div className="admin-drawer-note">
+          <ShieldCheck size={18} />
+          <p>
+            <strong>Canlı destek erişimi</strong>Menü içeriği, ürünler ve
+            tasarım ayarları bu hesap adına düzenlenebilir.
+          </p>
+        </div>
+        <dl>
+          {fields.map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <div className="admin-drawer-actions">
+          <Link href={`/${cafe.slug}`} target="_blank">
+            Canlı menüyü aç <ExternalLink size={15} />
+          </Link>
+          <Link
+            className="admin-primary-button"
+            href={`/admin/editor/${cafe.id}`}
+          >
+            <UtensilsCrossed size={16} /> Menüyü düzenle
+          </Link>
+        </div>
+      </aside>
+    </div>
   );
 }

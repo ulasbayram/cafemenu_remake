@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { menuCategories, type Cafe, type Item } from "@/lib/menu";
 import { api } from "@/lib/client-api";
+import { useAdminApi } from "@/lib/admin-api";
 import MenuView, { type MenuBlock } from "../menu-view";
 import ThemeToggle from "../theme-toggle";
 import { prepareLogo, preparePhoto } from "@/lib/logo";
@@ -41,8 +42,15 @@ import { uploadImage } from "@/lib/storage";
 import { useMenuTheme } from "../use-menu-theme";
 import { useHistory } from "./use-history";
 import { reorderItems } from "@/lib/editor-state";
-export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
+export default function MenuEditor({
+  initialCafe,
+  access = "owner",
+}: {
+  initialCafe: Cafe;
+  access?: "owner" | "admin";
+}) {
   const router = useRouter();
+  const adminApi = useAdminApi();
   const {
     value: cafe,
     update: setCafe,
@@ -331,7 +339,13 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
     setBusy(true);
     setError("");
     try {
-      const data = await api<Cafe>(`/api/cafes/${cafe.id}`, cafe, "PUT");
+      const data =
+        access === "admin"
+          ? await adminApi<Cafe>(`/api/admin/cafes/${cafe.id}`, {
+              body: cafe,
+              method: "PUT",
+            })
+          : await api<Cafe>(`/api/cafes/${cafe.id}`, cafe, "PUT");
       setCafe((current) =>
         JSON.stringify(current) === JSON.stringify(submitted) ? data : current,
       );
@@ -346,7 +360,7 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
   function back() {
     if (dirty && !window.confirm("Kaydedilmemiş değişiklikler silinsin mi?"))
       return;
-    router.push("/?view=menus");
+    router.push(access === "admin" ? "/admin" : "/?view=menus");
   }
   return (
     <div className="menu-studio">
@@ -354,7 +368,9 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
         <div className="studio-heading">
           <button
             className="icon-btn"
-            aria-label="Menü yönetimine dön"
+            aria-label={
+              access === "admin" ? "Admin paneline dön" : "Menü yönetimine dön"
+            }
             onClick={back}
           >
             <ArrowLeft size={20} />
@@ -362,7 +378,10 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
           <div>
             <strong>{cafe.name}</strong>
             <span>
-              Menü tasarım stüdyosu <ChevronRight size={11} /> /{cafe.slug}
+              {access === "admin"
+                ? "Canlı destek düzenlemesi"
+                : "Menü tasarım stüdyosu"}{" "}
+              <ChevronRight size={11} /> /{cafe.slug}
             </span>
           </div>
           <span className="studio-draft">
@@ -401,6 +420,15 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
           </button>
         </div>
       </header>
+      {access === "admin" && (
+        <div className="support-mode-banner" role="status">
+          <LockKeyhole size={16} />
+          <span>
+            <strong>Yönetici destek modu</strong> — Kaydettiğiniz değişiklikler
+            kafenin canlı menüsüne uygulanır.
+          </span>
+        </div>
+      )}
       <div className="studio-layout">
         <aside
           className="studio-layers"
@@ -969,7 +997,11 @@ export default function MenuEditor({ initialCafe }: { initialCafe: Cafe }) {
                   Fotoğraf
                   <div className="item-photo-field">
                     {item.photo ? (
-                      <img src={item.photo} alt="" className="item-photo-preview" />
+                      <img
+                        src={item.photo}
+                        alt=""
+                        className="item-photo-preview"
+                      />
                     ) : (
                       <span className="item-photo-empty">
                         <Camera size={20} />

@@ -65,7 +65,16 @@ export default function AuthForm() {
           password,
         });
         if (error) throw error;
-        window.location.assign(new URL("/", window.location.origin).href);
+        const requested = new URLSearchParams(window.location.search).get(
+          "next",
+        );
+        const destination =
+          requested?.startsWith("/") && !requested.startsWith("//")
+            ? requested
+            : "/";
+        window.location.assign(
+          new URL(destination, window.location.origin).href,
+        );
       }
     } catch (e) {
       setError(translate((e as Error).message));

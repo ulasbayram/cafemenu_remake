@@ -34,6 +34,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          ADMIN_USER_IDS: ${{ secrets.ADMIN_USER_IDS }}
           DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
       - name: Keep Supabase project awake (free tier idle pause)
         run: |

@@ -2,50 +2,95 @@ import { svc } from "@/db";
 import { verifyAdmin } from "@/lib/jwt";
 import { fail } from "@/lib/server";
 
+const DAY = 86_400_000;
+
 export async function GET(request: Request) {
   try {
     if (!(await verifyAdmin(request)))
-      return Response.json({ error: "Bu sayfa size ait değil." }, { status: 403 });
-    const { data, error } = await svc().rpc("admin_overview");
-    if (error) throw error;
-    const r = data as {
-      cafes: number;
-      published_cafes: number;
-      new_cafes_7d: number;
-      visits_total: number;
-      visits_7d: number;
-      visits_30d: number;
-      active_cafes_30d: number;
-      users: number;
-      new_users_7d: number;
-    };
-    const series = await svc()
-      .from("visits")
-      .select("day")
-      .gte("day", new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10));
+      return Response.json(
+        { error: "Admin yetkisi gerekli." },
+        { status: 403 },
+      );
+
+    const sb = svc();
+    const now = Date.now();
+    const since7 = new Date(now - 7 * DAY).toISOString();
+    const since30Day = new Date(now - 29 * DAY).toISOString().slice(0, 10);
+    const [
+      cafes,
+      published,
+      newCafes,
+      visits,
+      visits7,
+      visits30,
+      recentVisits,
+      rate,
+      users,
+    ] = await Promise.all([
+      sb.from("cafes").select("id", { count: "exact", head: true }),
+      sb
+        .from("cafes")
+        .select("id", { count: "exact", head: true })
+        .eq("published", true),
+      sb
+        .from("cafes")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", since7),
+      sb.from("visits").select("cafe", { count: "exact", head: true }),
+      sb
+        .from("visits")
+        .select("cafe", { count: "exact", head: true })
+        .gte("day", since7.slice(0, 10)),
+      sb
+        .from("visits")
+        .select("cafe", { count: "exact", head: true })
+        .gte("day", since30Day),
+      sb.from("visits").select("cafe, day").gte("day", since30Day).limit(10000),
+      sb.from("rates").select("fetched_at").eq("key", "TRY").maybeSingle(),
+      sb.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+    ]);
+
+    for (const result of [
+      cafes,
+      published,
+      newCafes,
+      visits,
+      visits7,
+      visits30,
+      recentVisits,
+      rate,
+    ])
+      if (result.error) throw result.error;
+    if (users.error) throw users.error;
+
     const byDay: Record<string, number> = {};
-    for (const row of series.data ?? [])
+    const active = new Set<string>();
+    for (let i = 0; i < 30; i++) {
+      const day = new Date(now - (29 - i) * DAY).toISOString().slice(0, 10);
+      byDay[day] = 0;
+    }
+    for (const row of recentVisits.data ?? []) {
       byDay[row.day] = (byDay[row.day] ?? 0) + 1;
-    const [rateRow] = (await svc()
-      .from("rates")
-      .select("fetched_at")
-      .eq("key", "TRY")
-      .limit(1)).data ?? [];
+      active.add(row.cafe);
+    }
+
+    const allUsers = users.data.users;
     return Response.json({
-      cafes: Number(r.cafes),
-      publishedCafes: Number(r.published_cafes),
-      newCafes7d: Number(r.new_cafes_7d),
-      visitsTotal: Number(r.visits_total),
-      visits7d: Number(r.visits_7d),
-      visits30d: Number(r.visits_30d),
-      activeCafes30d: Number(r.active_cafes_30d),
-      users: Number(r.users),
-      newUsers7d: Number(r.new_users_7d),
+      cafes: cafes.count ?? 0,
+      publishedCafes: published.count ?? 0,
+      newCafes7d: newCafes.count ?? 0,
+      visitsTotal: visits.count ?? 0,
+      visits7d: visits7.count ?? 0,
+      visits30d: visits30.count ?? 0,
+      activeCafes30d: active.size,
+      users: users.data.total ?? allUsers.length,
+      newUsers7d: allUsers.filter((user) => user.created_at >= since7).length,
       series: Object.entries(byDay).map(([day, count]) => ({ day, count })),
-      ratesFetchedAt: rateRow?.fetched_at ?? null,
+      ratesFetchedAt: rate.data?.fetched_at ?? null,
     });
-  } catch (e) {
-    return fail(e);
+  } catch (error) {
+    return fail(error);
   }
 }
+
 export const dynamic = "force-dynamic";

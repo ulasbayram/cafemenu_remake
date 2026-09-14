@@ -30,12 +30,17 @@ npm start              # http://127.0.0.1:8787
 ```
 
 Veritabanı şemasını uygulayın: Supabase paneli → SQL Editor →
-`supabase/migrations/0001_init.sql` içeriğini çalıştırın.
+`supabase/migrations/0001_init.sql` ve ardından `0002_rpcs.sql` içeriğini
+çalıştırın.
 
 `http://localhost:8787/login` adresinden hesabınızı oluşturun (şifre veya
-Google). İlk yönetici hesabına rol vermek için: Supabase → Auth → Users →
-kullanıcıyı seçin → `app_metadata` alanına `{"role": "admin"}` ekleyin
-(`/admin` paneli için).
+Google). Admin erişimi yalnızca normal kullanıcı girişinden sonra açılır; ayrı
+bir admin giriş formu yoktur. Supabase → Auth → Users ekranında belirlenen iki
+kullanıcının `app_metadata` alanına `{"role": "admin"}` ekleyin ve bu iki
+kullanıcının UUID değerini `ADMIN_USER_IDS=id-1,id-2` şeklinde tanımlayın.
+Uygulama hem imzalı token içindeki rolü hem de iki kişilik sunucu izin listesini
+kontrol eder. Admin panelindeki “Destek için düzenle” seçeneği ürün ve tasarım
+değişikliklerini aynı yetki kontrolüyle kaydeder.
 
 ## Doğrulama
 
@@ -53,6 +58,7 @@ node scripts/editor-state-test.mjs && node scripts/logo-test.mjs && node scripts
    `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_URL`,
    `SUPABASE_SECRET_KEY`, `DATABASE_URL`, `DOMAIN_NAME`,
    `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`
+   ve iki admin UUID'sini içeren `ADMIN_USER_IDS`
 4. Push → workflow typecheck + build + `wrangler deploy`
 5. Alan adı: Cloudflare DNS → Workers custom domain
 

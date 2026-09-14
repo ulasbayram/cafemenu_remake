@@ -3,7 +3,8 @@ import { createClient, type SupabaseClient } from "supabase-js";
 let service: SupabaseClient | undefined;
 
 function requireEnv(name: string): string {
-  const value = process.env[name];
+  const globals = globalThis as unknown as Record<string, string | undefined>;
+  const value = process.env[name] ?? globals[`FINCAN_${name}`];
   if (!value)
     throw new Error(
       `${name} is not configured. Add it via wrangler secret put (prod) or .dev.vars (local).`,
@@ -12,14 +13,25 @@ function requireEnv(name: string): string {
 }
 
 export function projectUrl(): string {
-  return requireEnv("SUPABASE_URL").replace(/\/+$/, "");
+  const globals = globalThis as unknown as Record<string, string | undefined>;
+  const value =
+    process.env.SUPABASE_URL ??
+    process.env.NEXT_PUBLIC_SUPABASE_URL ??
+    globals.FINCAN_SUPABASE_URL ??
+    globals.FINCAN_NEXT_PUBLIC_SUPABASE_URL;
+  if (!value) return requireEnv("SUPABASE_URL");
+  return value.replace(/\/+$/, "");
 }
 
 function publishableKey(): string {
+  const globals = globalThis as unknown as Record<string, string | undefined>;
   const key =
     process.env.SUPABASE_PUBLISHABLE_KEY ??
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+    globals.FINCAN_SUPABASE_PUBLISHABLE_KEY ??
+    globals.FINCAN_NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    globals.FINCAN_NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!key) throw new Error("SUPABASE_PUBLISHABLE_KEY is not configured.");
   return key;
 }
