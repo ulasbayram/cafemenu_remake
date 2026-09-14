@@ -10,6 +10,40 @@ import { cafeSchema } from "@/lib/menu";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const uid = await owner(request);
+    const { id } = await params;
+    if (!UUID.test(id))
+      return Response.json({ error: "Kafe bulunamadı." }, { status: 404 });
+    const { data, error } = await asUser(userJwt(request))
+      .from("cafes")
+      .select("id, name, location, social, published, table_count, logo_url, data, created_at")
+      .eq("id", id)
+      .limit(1);
+    if (error) throw error;
+    const row = data?.[0];
+    if (!row)
+      return Response.json({ error: "Kafe bulunamadı." }, { status: 404 });
+    return Response.json({
+      ...((row.data ?? {}) as object),
+      name: row.name,
+      location: row.location,
+      socialLinks: row.social,
+      published: row.published,
+      tableCount: Number(row.table_count),
+      logoUrl: row.logo_url ?? undefined,
+      id: row.id,
+      createdAt: row.created_at,
+    });
+  } catch (e) {
+    return fail(e);
+  }
+}
+
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
