@@ -36,7 +36,8 @@ export async function GET(
       socialLinks: row.social,
       published: row.published,
       tableCount: Number(row.table_count),
-      logoUrl: row.logo_url ?? undefined,
+      logoUrl:
+        row.logo_url ?? (row.data as { logoUrl?: string })?.logoUrl ?? undefined,
       id: row.id,
       createdAt: row.created_at,
     });
@@ -88,6 +89,7 @@ export async function PUT(
         social: c.socialLinks ?? {},
         published: c.published,
         table_count: c.tableCount ?? 0,
+        logo_url: c.logoUrl ?? null,
         data: {
           ...c,
           name: undefined,
@@ -96,6 +98,7 @@ export async function PUT(
           socialLinks: undefined,
           published: undefined,
           tableCount: undefined,
+          logoUrl: undefined,
         },
       })
       .eq("id", id);

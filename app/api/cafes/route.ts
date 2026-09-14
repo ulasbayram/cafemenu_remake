@@ -18,7 +18,8 @@ export async function GET(request: Request) {
         socialLinks: r.social,
         published: r.published,
         tableCount: Number(r.table_count),
-        logoUrl: r.logo_url ?? undefined,
+        logoUrl:
+          r.logo_url ?? (r.data as { logoUrl?: string })?.logoUrl ?? undefined,
         id: r.id,
         createdAt: r.created_at,
       })),
@@ -49,6 +50,7 @@ export async function POST(request: Request) {
       social: c.socialLinks ?? {},
       published: c.published,
       table_count: c.tableCount ?? 0,
+      logo_url: c.logoUrl ?? null,
       data: {
         ...c,
         name: undefined,
@@ -57,6 +59,7 @@ export async function POST(request: Request) {
         socialLinks: undefined,
         published: undefined,
         tableCount: undefined,
+        logoUrl: undefined,
       },
     };
     const { data, error } = await asUser(userJwt(request))

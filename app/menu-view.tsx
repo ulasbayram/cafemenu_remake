@@ -136,6 +136,7 @@ export default function MenuView({
           {cafe.logoUrl ? (
             <img
               src={cafe.logoUrl}
+              crossOrigin="anonymous"
               alt={`${cafe.name} logosu`}
               onLoad={(e) => {
                 if (cafe.logoSurface || !cafe.logoUrl) return;

@@ -47,7 +47,7 @@ export default async function Page({
           socialLinks: r.social as Record<string, string> | undefined,
           published: r.published,
           tableCount,
-          logoUrl: r.logo_url ?? undefined,
+          logoUrl: r.logo_url ?? (c.logoUrl as string | undefined) ?? undefined,
           id: r.id,
           createdAt: r.created_at,
         } as never}
