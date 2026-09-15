@@ -1,20 +1,91 @@
 "use client";
 import { useEffect, useState, type CSSProperties } from "react";
-import { Sun, Moon } from "lucide-react";
-import type { Cafe } from "@/lib/menu";
+import {
+  Sun,
+  Moon,
+  ShoppingBag,
+  Minus,
+  Plus,
+  X,
+  LoaderCircle,
+  CheckCircle2,
+} from "lucide-react";
+import type { Cafe, Item } from "@/lib/menu";
 import { useMenuTheme } from "./use-menu-theme";
 import MenuView, { type Rates } from "./menu-view";
 export default function PublicMenu({
   cafe,
   table,
+  orderToken,
 }: {
   cafe: Cafe;
   table?: number | null;
+  orderToken?: string | null;
 }) {
   const [rates, setRates] = useState<Rates | null>(null),
     [currency, setCurrency] = useState("TRY"),
-    [rateError, setRateError] = useState("");
+    [rateError, setRateError] = useState(""),
+    [cart, setCart] = useState<Record<string, number>>({}),
+    [cartOpen, setCartOpen] = useState(false),
+    [sending, setSending] = useState(false),
+    [orderError, setOrderError] = useState(""),
+    [sentOrder, setSentOrder] = useState<string | null>(null);
   const { theme, toggleTheme } = useMenuTheme(cafe.defaultTheme);
+  const orderEnabled = !!(table && orderToken);
+  const cartLines = cafe.items
+    .filter((item) => item.available && (cart[item.id] ?? 0) > 0)
+    .map((item) => ({ item, quantity: cart[item.id] }));
+  const cartCount = cartLines.reduce((sum, line) => sum + line.quantity, 0);
+  const cartTotal = cartLines.reduce(
+    (sum, line) => sum + line.item.price * line.quantity,
+    0,
+  );
+
+  function changeQuantity(item: Item, amount: number) {
+    setCart((current) => {
+      const quantity = Math.max(
+        0,
+        Math.min(20, (current[item.id] ?? 0) + amount),
+      );
+      const next = { ...current };
+      if (quantity) next[item.id] = quantity;
+      else delete next[item.id];
+      return next;
+    });
+  }
+
+  async function submitOrder() {
+    if (!orderEnabled || !cartLines.length) return;
+    setSending(true);
+    setOrderError("");
+    try {
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cafe: cafe.id,
+          table,
+          token: orderToken,
+          items: cartLines.map((line) => ({
+            id: line.item.id,
+            quantity: line.quantity,
+          })),
+        }),
+      });
+      const result = (await response.json().catch(() => ({}))) as {
+        id?: string;
+        error?: string;
+      };
+      if (!response.ok)
+        throw new Error(result.error || "Sipariş gönderilemedi.");
+      setCart({});
+      setSentOrder(result.id?.slice(0, 8).toUpperCase() || "ALINDI");
+    } catch (error) {
+      setOrderError((error as Error).message);
+    } finally {
+      setSending(false);
+    }
+  }
   useEffect(() => {
     document.documentElement.dataset.menuTheme = theme;
   }, [theme]);
@@ -46,7 +117,14 @@ export default function PublicMenu({
   return (
     <main
       className="public-shell"
-      style={{ "--public-brand": cafe.accent } as CSSProperties}
+      style={
+        {
+          "--public-brand": cafe.accent,
+          "--menu-accent": cafe.accent,
+          "--menu-background": cafe.background || "#fdfcf7",
+          "--menu-text": cafe.textColor || "#303c2f",
+        } as CSSProperties
+      }
     >
       <div className="currency-bar">
         <span>Menü / Menu</span>
@@ -84,7 +162,20 @@ export default function PublicMenu({
           </label>
         </div>
       </div>
-      <MenuView cafe={cafe} rates={rates} currency={currency} />
+      {orderEnabled && (
+        <div className="table-order-banner">
+          <span>Masa {table}</span>
+          <strong>Masadan sipariş verebilirsiniz</strong>
+        </div>
+      )}
+      <MenuView
+        cafe={cafe}
+        rates={rates}
+        currency={currency}
+        onAddToOrder={
+          orderEnabled ? (item) => changeQuantity(item, 1) : undefined
+        }
+      />
       <p className="rate-disclaimer">
         {rates
           ? `${rates.stale ? "Son bilinen kur / Last available rate · " : ""}${rates.source} · ${rates.date}. `
@@ -93,6 +184,119 @@ export default function PublicMenu({
           ? "Converted prices are approximate. Payment is in TRY."
           : "Ödemeler TL olarak alınır."}
       </p>
+      {orderEnabled && cartCount > 0 && (
+        <button className="cart-fab" onClick={() => setCartOpen(true)}>
+          <span>
+            <ShoppingBag size={19} /> Sepeti görüntüle
+          </span>
+          <b>{cartCount}</b>
+          <strong>
+            {cartTotal.toLocaleString("tr-TR", {
+              style: "currency",
+              currency: "TRY",
+            })}
+          </strong>
+        </button>
+      )}
+      {cartOpen && orderEnabled && (
+        <div
+          className="order-sheet-overlay"
+          onMouseDown={() => !sending && setCartOpen(false)}
+        >
+          <section
+            className="order-sheet"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header>
+              <div>
+                <span>MASA {table}</span>
+                <h2>Siparişiniz</h2>
+              </div>
+              <button
+                aria-label="Sepeti kapat"
+                onClick={() => setCartOpen(false)}
+              >
+                <X size={20} />
+              </button>
+            </header>
+            {sentOrder ? (
+              <div className="order-success">
+                <CheckCircle2 size={42} />
+                <h3>Siparişiniz alındı.</h3>
+                <p>Kafe ekibi siparişinizi hazırlamaya başlayacak.</p>
+                <small>Sipariş no · {sentOrder}</small>
+                <button
+                  className="btn primary full"
+                  onClick={() => {
+                    setSentOrder(null);
+                    setCartOpen(false);
+                  }}
+                >
+                  Menüye dön
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="cart-lines">
+                  {cartLines.map(({ item, quantity }) => (
+                    <article key={item.id}>
+                      <div>
+                        <strong>{item.name}</strong>
+                        <small>
+                          {(item.price * quantity).toLocaleString("tr-TR", {
+                            style: "currency",
+                            currency: "TRY",
+                          })}
+                        </small>
+                      </div>
+                      <div className="quantity-control">
+                        <button
+                          aria-label={`${item.name} adedini azalt`}
+                          onClick={() => changeQuantity(item, -1)}
+                        >
+                          <Minus size={15} />
+                        </button>
+                        <b>{quantity}</b>
+                        <button
+                          aria-label={`${item.name} adedini artır`}
+                          onClick={() => changeQuantity(item, 1)}
+                        >
+                          <Plus size={15} />
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+                <div className="cart-total">
+                  <span>Toplam</span>
+                  <strong>
+                    {cartTotal.toLocaleString("tr-TR", {
+                      style: "currency",
+                      currency: "TRY",
+                    })}
+                  </strong>
+                </div>
+                {orderError && <p className="form-error">{orderError}</p>}
+                <button
+                  className="btn primary full order-submit"
+                  disabled={sending || !cartLines.length}
+                  onClick={submitOrder}
+                >
+                  {sending ? (
+                    <LoaderCircle className="spin" size={17} />
+                  ) : (
+                    <ShoppingBag size={17} />
+                  )}
+                  {sending ? "Gönderiliyor…" : `Masa ${table} için sipariş ver`}
+                </button>
+                <p className="order-payment-note">
+                  Ödeme kafe tarafından ayrıca alınır.
+                </p>
+              </>
+            )}
+          </section>
+        </div>
+      )}
     </main>
   );
 }

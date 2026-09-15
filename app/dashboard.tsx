@@ -38,14 +38,34 @@ import {
   Menu,
   Info,
   Printer,
+  Package,
+  ClipboardList,
 } from "lucide-react";
-import { Cafe, Item, slugify, sampleItems } from "@/lib/menu";
+import { Cafe, Item, cafeSlug, slugify, sampleItems } from "@/lib/menu";
 import { type Rates } from "./menu-view";
 import { parseMenu } from "@/lib/ocr";
 import { socialFields } from "@/lib/social-links";
 import { api } from "@/lib/client-api";
-type Tab = "overview" | "cafes" | "menus" | "import" | "stats" | "settings";
+import ProductsManager from "./products-manager";
+import OrdersManager from "./orders-manager";
+type Tab =
+  | "overview"
+  | "cafes"
+  | "menus"
+  | "products"
+  | "orders"
+  | "import"
+  | "stats"
+  | "settings";
 type Stat = { cafe: string; day: string; hour: number; count: number };
+type QrOptions = Parameters<typeof import("qrcode").toDataURL>[1];
+
+async function qrDataUrl(text: string, options: QrOptions) {
+  const qrModule = await import("qrcode");
+  const toDataURL = qrModule.toDataURL ?? qrModule.default?.toDataURL;
+  if (!toDataURL) throw new Error("QR encoder could not be loaded.");
+  return toDataURL(text, options);
+}
 function Modal({
   title,
   children,
@@ -78,7 +98,11 @@ function Modal({
     </dialog>
   );
 }
-export default function Dashboard({ initialTab = "overview" }: { initialTab?: Tab }) {
+export default function Dashboard({
+  initialTab = "overview",
+}: {
+  initialTab?: Tab;
+}) {
   const router = useRouter();
   const sidebarRef = useRef<HTMLElement>(null);
   const menuToggleRef = useRef<HTMLButtonElement>(null);
@@ -194,19 +218,17 @@ export default function Dashboard({ initialTab = "overview" }: { initialTab?: Ta
   useEffect(() => {
     if (!qr) return;
     let active = true;
-    import("qrcode")
-      .then((m) =>
-        m.toDataURL(`${window.location.origin}/${qr.slug}`, {
-          width: 800,
-          margin: 4,
-          color: { dark: "#172f27", light: "#ffffff" },
-          errorCorrectionLevel: "M",
-        }),
-      )
+    qrDataUrl(`${window.location.origin}/${qr.slug}`, {
+      width: 800,
+      margin: 4,
+      color: { dark: "#172f27", light: "#ffffff" },
+      errorCorrectionLevel: "M",
+    })
       .then((url) => {
         if (active) setQrImage({ id: qr.id, url });
       })
-      .catch(() => {
+      .catch((cause) => {
+        console.error("QR generation failed", cause);
         if (active) setError("QR kod oluşturulamadı.");
       });
     return () => {
@@ -216,25 +238,26 @@ export default function Dashboard({ initialTab = "overview" }: { initialTab?: Ta
   useEffect(() => {
     if (!qrTables) return;
     let active = true;
-    import("qrcode")
-      .then(async (m) => {
+    Promise.resolve()
+      .then(async () => {
+        const { links } = await api<{
+          links: { table: number; path: string }[];
+        }>(`/api/cafes/${qrTables.id}/table-links`);
         const urls: string[] = [];
-        for (let t = 1; t <= qrTables.tableCount; t++) {
+        for (const link of links) {
           urls.push(
-            await m.toDataURL(
-              `${window.location.origin}/${qrTables.slug}?table=${t}`,
-              {
-                width: 600,
-                margin: 3,
-                color: { dark: "#172f27", light: "#ffffff" },
-                errorCorrectionLevel: "M",
-              },
-            ),
+            await qrDataUrl(`${window.location.origin}${link.path}`, {
+              width: 600,
+              margin: 3,
+              color: { dark: "#172f27", light: "#ffffff" },
+              errorCorrectionLevel: "M",
+            }),
           );
         }
         if (active) setQrTableImages(urls);
       })
-      .catch(() => {
+      .catch((cause) => {
+        console.error("Table QR generation failed", cause);
         if (active) setError("QR kodları oluşturulamadı.");
       });
     return () => {
@@ -308,10 +331,12 @@ export default function Dashboard({ initialTab = "overview" }: { initialTab?: Ta
     setBusy(true);
     setError("");
     try {
+      const normalizedSlug = cafeSlug(newSlug, newName);
+      setNewSlug(normalizedSlug);
       const c = await api<Cafe>("/api/cafes", {
-        name: newName,
-        slug: newSlug,
-        location: newLocation,
+        name: newName.trim(),
+        slug: normalizedSlug,
+        location: newLocation.trim(),
         subtitle: "Küçük bir mola, güzel bir kahve.",
         accent: "#245b46",
         style: "classic",
@@ -405,6 +430,8 @@ export default function Dashboard({ initialTab = "overview" }: { initialTab?: Ta
       { id: "overview", label: "Genel bakış", icon: LayoutDashboard },
       { id: "cafes", label: "Kafelerim", icon: Store },
       { id: "menus", label: "Menü yönetimi", icon: BookOpen },
+      { id: "products", label: "Ürünler", icon: Package },
+      { id: "orders", label: "Siparişler", icon: ClipboardList },
       { id: "import", label: "Menü yapıştır", icon: ScanLine },
       { id: "stats", label: "İstatistikler", icon: ChartNoAxesCombined },
     ] as const;
@@ -425,6 +452,8 @@ export default function Dashboard({ initialTab = "overview" }: { initialTab?: Ta
     overview: "Genel bakış",
     cafes: "Kafelerim",
     menus: "Menü yönetimi",
+    products: "Ürünler ve kategoriler",
+    orders: "Siparişler",
     import: "Fiziksel menünüz, dijital olsun.",
     stats: "Menünüzün nabzını tutun.",
     settings: "Hesap ve kullanım",
@@ -586,11 +615,15 @@ export default function Dashboard({ initialTab = "overview" }: { initialTab?: Ta
                       ? "Tüm kafeleriniz, tek bir yerde."
                       : tab === "menus"
                         ? "Her kafenin ruhuna uygun bir menü tasarlayın."
-                        : tab === "import"
-                          ? "Menü metnini yapıştırın. Ürünleri kontrol edin. Menünüze ekleyin."
-                          : tab === "stats"
-                            ? "Gerçek menü ziyaretleriyle gününüzü daha iyi anlayın."
-                            : "Sade, şeffaf ve düşük maliyetli bir çalışma alanı."}
+                        : tab === "products"
+                          ? "Kategorileri ve ürünleri tek bir çalışma alanından yönetin."
+                          : tab === "orders"
+                            ? "Masalardan gelen siparişleri takip edin."
+                            : tab === "import"
+                              ? "Menü metnini yapıştırın. Ürünleri kontrol edin. Menünüze ekleyin."
+                              : tab === "stats"
+                                ? "Gerçek menü ziyaretleriyle gününüzü daha iyi anlayın."
+                                : "Sade, şeffaf ve düşük maliyetli bir çalışma alanı."}
                 </p>
               </div>
               <div className="heading-actions">
@@ -600,11 +633,15 @@ export default function Dashboard({ initialTab = "overview" }: { initialTab?: Ta
                     {dateLabel}
                   </span>
                 )}
-                {tab !== "settings" && tab !== "import" && tab !== "menus" && (
-                  <button className="btn primary" onClick={startCreate}>
-                    <Plus size={18} /> Yeni kafe ekle
-                  </button>
-                )}
+                {tab !== "settings" &&
+                  tab !== "import" &&
+                  tab !== "menus" &&
+                  tab !== "products" &&
+                  tab !== "orders" && (
+                    <button className="btn primary" onClick={startCreate}>
+                      <Plus size={18} /> Yeni kafe ekle
+                    </button>
+                  )}
               </div>
             </div>
             {(tab === "overview" || tab === "stats") && (
@@ -956,9 +993,9 @@ export default function Dashboard({ initialTab = "overview" }: { initialTab?: Ta
                 <div className="menu-management-note">
                   <Palette size={19} />
                   <p>
-                    Menü tasarımı, kategoriler ve ürünler ayrı editörde
-                    düzenlenir. Kafe iletişim bilgileri ve QR kodları Kafelerim
-                    bölümündedir.
+                    Bu bölüm yalnızca menünün görsel tasarımı içindir. Ürün ve
+                    kategori içerikleri Ürünler bölümünden; kafe iletişim
+                    bilgileri ve QR kodları Kafelerim bölümünden yönetilir.
                   </p>
                 </div>
                 {cafes.length === 0 ? (
@@ -1012,6 +1049,23 @@ export default function Dashboard({ initialTab = "overview" }: { initialTab?: Ta
                   </div>
                 )}
               </section>
+            )}
+            {tab === "products" && (
+              <ProductsManager
+                key={cafes.map((cafe) => cafe.id).join(":")}
+                cafes={cafes}
+                setCafes={setCafes}
+                onCreateCafe={startCreate}
+                onError={setError}
+                onToast={setToast}
+              />
+            )}
+            {tab === "orders" && (
+              <OrdersManager
+                cafes={cafes}
+                onError={setError}
+                onToast={setToast}
+              />
             )}
             {tab === "import" && (
               <div className="scan-grid">
@@ -1513,12 +1567,14 @@ export default function Dashboard({ initialTab = "overview" }: { initialTab?: Ta
             <button
               className="btn full"
               disabled={!qrUrl}
-              onClick={() => setQrTables({
-                id: qr.id,
-                slug: qr.slug,
-                tableCount: qr.tableCount || 0,
-                name: qr.name,
-              })}
+              onClick={() =>
+                setQrTables({
+                  id: qr.id,
+                  slug: qr.slug,
+                  tableCount: qr.tableCount || 0,
+                  name: qr.name,
+                })
+              }
             >
               <Printer size={16} /> Masa QR kâğıtları yazdır
             </button>
@@ -1578,7 +1634,10 @@ export default function Dashboard({ initialTab = "overview" }: { initialTab?: Ta
                   >
                     <Printer size={17} /> Yazdır
                   </button>
-                  <button className="btn full" onClick={() => setQrTables(null)}>
+                  <button
+                    className="btn full"
+                    onClick={() => setQrTables(null)}
+                  >
                     Kapat
                   </button>
                 </div>

@@ -30,8 +30,9 @@ npm start              # http://127.0.0.1:8787
 ```
 
 Veritabanı şemasını uygulayın: Supabase paneli → SQL Editor →
-`supabase/migrations/0001_init.sql` ve ardından `0002_rpcs.sql` içeriğini
-çalıştırın.
+`supabase/migrations` klasöründeki SQL dosyalarını dosya adına göre sırasıyla
+çalıştırın. `0002_orders.sql`, masa QR kodları üzerinden alınan siparişleri ve
+kafe sahibinin durum yönetimini ekler.
 
 `http://localhost:8787/login` adresinden hesabınızı oluşturun (şifre veya
 Google). Admin erişimi yalnızca normal kullanıcı girişinden sonra açılır; ayrı
@@ -53,7 +54,7 @@ node scripts/editor-state-test.mjs && node scripts/logo-test.mjs && node scripts
 ## Yayın
 
 1. Supabase projesi (Frankfurt) + Google OAuth + şifre doğrulama (min 12 karakter)
-2. Migration: `supabase/migrations/0001_init.sql` (tablolar + RLS + Storage bucket)
+2. Migration: `supabase/migrations` içindeki SQL dosyalarını sırasıyla çalıştırın
 3. GitHub repo → Actions secret'ları: `NEXT_PUBLIC_SUPABASE_URL`,
    `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_URL`,
    `SUPABASE_SECRET_KEY`, `DATABASE_URL`, `DOMAIN_NAME`,

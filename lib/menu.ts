@@ -150,3 +150,21 @@ export function slugify(s: string) {
     .replace(/^-|-$/g, "")
     .slice(0, 60);
 }
+
+const reservedSlugs = new Set([
+  "api",
+  "admin",
+  "auth",
+  "favicon",
+  "login",
+  "editor",
+]);
+
+/** Produces a route-safe menu address even for short or number-first cafe names. */
+export function cafeSlug(input: string, cafeName = ""): string {
+  let value = slugify(input) || slugify(cafeName) || "kafe";
+  if (!/^[a-z]/.test(value)) value = `kafe-${value}`;
+  if (reservedSlugs.has(value)) value = `${value}-menu`;
+  if (value.length < 3) value = `${value}-kafe`;
+  return value.slice(0, 60).replace(/-+$/, "");
+}

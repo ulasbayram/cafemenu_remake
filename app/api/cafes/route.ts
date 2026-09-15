@@ -1,12 +1,37 @@
-import { asUser, isUniqueViolation, owner, userJwt, fail, sameOrigin } from "@/lib/server";
+import {
+  asUser,
+  isUniqueViolation,
+  owner,
+  userJwt,
+  fail,
+  sameOrigin,
+} from "@/lib/server";
 import { cafeSchema } from "@/lib/menu";
+
+const cafeFieldNames: Record<string, string> = {
+  name: "Kafe adı",
+  slug: "Menü adresi",
+  location: "Konum",
+  subtitle: "Kısa açıklama",
+  items: "Ürünler",
+};
+
+function validationError(path: PropertyKey[], fallback: string) {
+  const field = cafeFieldNames[String(path[0] ?? "")];
+  if (field === "Kafe adı") return "Kafe adı en az 2 karakter olmalı.";
+  if (field === "Menü adresi")
+    return "Menü adresi harfle başlamalı ve en az 3 karakter olmalı.";
+  return field ? `${field} geçersiz.` : fallback || "Kafe bilgileri geçersiz.";
+}
 
 export async function GET(request: Request) {
   try {
     await owner(request);
     const { data, error } = await asUser(userJwt(request))
       .from("cafes")
-      .select("id, slug, name, location, social, published, table_count, logo_url, data, created_at")
+      .select(
+        "id, slug, name, location, social, published, table_count, logo_url, data, created_at",
+      )
       .order("created_at", { ascending: false });
     if (error) throw error;
     return Response.json(
@@ -37,7 +62,12 @@ export async function POST(request: Request) {
     const result = cafeSchema.safeParse(await request.json());
     if (!result.success)
       return Response.json(
-        { error: result.error.issues[0].message },
+        {
+          error: validationError(
+            result.error.issues[0].path,
+            result.error.issues[0].message,
+          ),
+        },
         { status: 400 },
       );
     const c = result.data;

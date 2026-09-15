@@ -12,6 +12,7 @@ import {
   Star,
   ExternalLink,
   MessageCircle,
+  Plus,
 } from "lucide-react";
 import { socialFields, normalizeSocialLink } from "@/lib/social-links";
 import { menuCategories, type Cafe, type Item } from "@/lib/menu";
@@ -32,6 +33,8 @@ export default function MenuView({
   onSelectBlock,
   selectedBlock,
   onEdit,
+  blockScope = "all",
+  onAddToOrder,
 }: {
   cafe: Cafe;
   rates?: Rates | null;
@@ -39,8 +42,11 @@ export default function MenuView({
   onSelectBlock?: (block: MenuBlock) => void;
   selectedBlock?: MenuBlock;
   onEdit?: (item: Item) => void;
+  blockScope?: "all" | "design";
+  onAddToOrder?: (item: Item) => void;
 }) {
   const editable = !!(onSelectBlock || onEdit),
+    contentEditable = !!onEdit || (!!onSelectBlock && blockScope === "all"),
     categories = menuCategories(cafe).filter(
       (c) =>
         editable || cafe.items.some((i) => i.category === c && i.available),
@@ -63,12 +69,15 @@ export default function MenuView({
     : selected === "Tümü" || categories.includes(selected)
       ? selected
       : "Tümü";
+  const blockIsEditable = (key: MenuBlock) =>
+    !!onSelectBlock &&
+    (blockScope === "all" || ["theme", "header", "footer"].includes(key));
   const blockClass = (key: MenuBlock) =>
-    onSelectBlock
+    blockIsEditable(key)
       ? `selectable-block ${selectedBlock === key ? "block-selected" : ""}`
       : "";
   const selectProps = (key: MenuBlock, label: string) =>
-    onSelectBlock
+    blockIsEditable(key)
       ? {
           role: "button",
           "data-menu-block": key,
@@ -76,17 +85,17 @@ export default function MenuView({
           "aria-label": `${label} bloğunu düzenle`,
           onClick: (e: React.MouseEvent) => {
             e.stopPropagation();
-            onSelectBlock(key);
+            onSelectBlock?.(key);
           },
           onKeyDown: (e: React.KeyboardEvent) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
-              onSelectBlock(key);
+              onSelectBlock?.(key);
             }
           },
         }
       : {};
-  const ItemTag = editable ? "button" : "div";
+  const ItemTag = contentEditable ? "button" : "div";
   const allLinks = socialFields.flatMap((field) => {
     try {
       const href = normalizeSocialLink(
@@ -214,7 +223,7 @@ export default function MenuView({
             className={active === c ? "selected" : ""}
             onClick={() => {
               setSelected(c);
-              onSelectBlock?.(`category:${c}`);
+              if (contentEditable) onSelectBlock?.(`category:${c}`);
             }}
           >
             {c}
@@ -238,7 +247,9 @@ export default function MenuView({
                     ).length
                   }
                 </span>
-                {onSelectBlock && <span className="block-label">Kategori</span>}
+                {blockIsEditable(`category:${cat}`) && (
+                  <span className="block-label">Kategori</span>
+                )}
               </h2>
               {cafe.items
                 .filter((i) => i.category === cat && (editable || i.available))
@@ -248,7 +259,7 @@ export default function MenuView({
                     className={`menu-item ${!item.available ? "unavailable" : ""} ${blockClass(`item:${item.id}`)}`}
                     key={item.id}
                     onClick={
-                      editable
+                      contentEditable
                         ? () => {
                             onEdit?.(item);
                             onSelectBlock?.(`item:${item.id}`);
@@ -256,12 +267,14 @@ export default function MenuView({
                         : undefined
                     }
                     aria-label={
-                      editable
+                      contentEditable
                         ? `${item.name || "Yeni ürün"} ürününü düzenle`
                         : undefined
                     }
                   >
-                    {onSelectBlock && <span className="block-label">Ürün</span>}
+                    {blockIsEditable(`item:${item.id}`) && (
+                      <span className="block-label">Ürün</span>
+                    )}
                     <span>
                       <strong>{item.name || "Yeni ürün"}</strong>
                       {item.photo && (
@@ -294,6 +307,16 @@ export default function MenuView({
                             : rates?.[currency as "USD" | "EUR"] || 1),
                       )}
                     </b>
+                    {onAddToOrder && (
+                      <button
+                        type="button"
+                        className="menu-order-add"
+                        onClick={() => onAddToOrder(item)}
+                        aria-label={`${item.name} ürününü siparişe ekle`}
+                      >
+                        <Plus size={15} /> Ekle
+                      </button>
+                    )}
                   </ItemTag>
                 ))}
             </section>

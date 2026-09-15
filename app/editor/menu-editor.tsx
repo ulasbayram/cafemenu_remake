@@ -1,47 +1,33 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- The uploaded logo is already optimized locally; no image service is needed. */
-import {
-  useEffect,
-  useState,
-  useCallback,
-  type CSSProperties,
-  type DragEvent,
-} from "react";
+import { useEffect, useState, useCallback, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Save,
-  Plus,
   Palette,
   Type,
   Layers,
   ChevronRight,
   LockKeyhole,
-  MoveUp,
-  MoveDown,
-  Trash2,
   Smartphone,
   Monitor,
   MousePointer2,
   Check,
-  Eye,
   Undo2,
   Redo2,
-  GripVertical,
   X,
   LoaderCircle,
-  Camera,
 } from "lucide-react";
-import { menuCategories, type Cafe, type Item } from "@/lib/menu";
+import { type Cafe } from "@/lib/menu";
 import { api } from "@/lib/client-api";
 import { useAdminApi } from "@/lib/admin-api";
 import MenuView, { type MenuBlock } from "../menu-view";
 import ThemeToggle from "../theme-toggle";
-import { prepareLogo, preparePhoto } from "@/lib/logo";
+import { prepareLogo } from "@/lib/logo";
 import { uploadImage } from "@/lib/storage";
 import { useMenuTheme } from "../use-menu-theme";
 import { useHistory } from "./use-history";
-import { reorderItems } from "@/lib/editor-state";
 export default function MenuEditor({
   initialCafe,
   access = "owner",
@@ -59,10 +45,6 @@ export default function MenuEditor({
     canUndo,
     canRedo,
   } = useHistory(initialCafe);
-  const [dragged, setDragged] = useState<{
-    kind: "category" | "item";
-    id: string;
-  } | null>(null);
   const [saved, setSaved] = useState(initialCafe),
     [requestedSelection, setSelection] = useState<MenuBlock>("theme"),
     [busy, setBusy] = useState(false),
@@ -70,31 +52,15 @@ export default function MenuEditor({
     [error, setError] = useState(""),
     [toast, setToast] = useState(""),
     [wide, setWide] = useState(false),
-    [inspector, setInspector] = useState(true),
-    [categoryName, setCategoryName] = useState(""),
-    [deleteId, setDeleteId] = useState<string | null>(null);
+    [inspector, setInspector] = useState(true);
   const dirty = JSON.stringify(cafe) !== JSON.stringify(saved);
   const { theme: customerTheme } = useMenuTheme(cafe.defaultTheme);
   const [previewTheme, setPreviewTheme] = useState("auto");
-  const categories = menuCategories(cafe);
-  const [newCategory, setNewCategory] = useState("");
-  const [categoryForm, setCategoryForm] = useState(false);
-  const [dropTarget, setDropTarget] = useState<{
-    kind: "item" | "category";
-    id: string;
-    position: "before" | "after" | "inside";
-  } | null>(null);
-  const selection: MenuBlock =
-    (requestedSelection.startsWith("item:") &&
-      !cafe.items.some((i) => i.id === requestedSelection.slice(5))) ||
-    (requestedSelection.startsWith("category:") &&
-      !categories.includes(requestedSelection.slice(9)))
-      ? "theme"
-      : requestedSelection;
-  const item = selection.startsWith("item:")
-    ? cafe.items.find((i) => i.id === selection.slice(5))
-    : undefined;
-  const category = selection.startsWith("category:") ? selection.slice(9) : "";
+  const selection: MenuBlock = ["theme", "header", "footer"].includes(
+    requestedSelection,
+  )
+    ? requestedSelection
+    : "theme";
   useEffect(() => {
     const keydown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -133,9 +99,10 @@ export default function MenuEditor({
     return () => clearTimeout(timer);
   }, [toast]);
   const select = useCallback((block: MenuBlock) => {
-    setSelection(block);
+    setSelection(
+      ["theme", "header", "footer"].includes(block) ? block : "theme",
+    );
     setInspector(true);
-    if (block.startsWith("category:")) setCategoryName(block.slice(9));
     setError("");
   }, []);
   function change(p: Partial<Cafe>) {
@@ -176,163 +143,6 @@ export default function MenuEditor({
     } finally {
       setLogoBusy(false);
     }
-  }
-  function changeItem(p: Partial<Item>) {
-    if (item)
-      change({
-        items: cafe.items.map((i) => (i.id === item.id ? { ...i, ...p } : i)),
-      });
-  }
-  function addCategory() {
-    const name = newCategory.trim();
-    if (!name || name.length > 60) {
-      setError("Kategori adı 1–60 karakter olmalı.");
-      return;
-    }
-    if (
-      categories.some(
-        (c) => c.toLocaleLowerCase("tr") === name.toLocaleLowerCase("tr"),
-      )
-    ) {
-      setError("Bu kategori zaten var.");
-      return;
-    }
-    change({ categories: [...categories, name] });
-    setNewCategory("");
-    setCategoryForm(false);
-    select(`category:${name}`);
-  }
-  function dragOver(
-    e: DragEvent<HTMLElement>,
-    kind: "category" | "item",
-    id: string,
-  ) {
-    if (!dragged || (kind === "item" && dragged.kind !== "item")) return;
-    if (dragged.kind === kind && dragged.id === id) {
-      setDropTarget(null);
-      return;
-    }
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = "move";
-    const rect = e.currentTarget.getBoundingClientRect();
-    setDropTarget({
-      kind,
-      id,
-      position:
-        dragged.kind === "item" && kind === "category"
-          ? "inside"
-          : e.clientY < rect.top + rect.height / 2
-            ? "before"
-            : "after",
-    });
-  }
-  function finishDrop(e: DragEvent<HTMLElement>) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (dragged && dropTarget) {
-      if (dragged.kind === "category" && dropTarget.kind === "category") {
-        const order = categories.filter((c) => c !== dragged.id);
-        order.splice(
-          order.indexOf(dropTarget.id) +
-            (dropTarget.position === "after" ? 1 : 0),
-          0,
-          dragged.id,
-        );
-        change({
-          categories: order,
-          items: order.flatMap((c) =>
-            cafe.items.filter((i) => i.category === c),
-          ),
-        });
-      } else if (dragged.kind === "item" && dropTarget.kind === "item") {
-        change({
-          categories,
-          items: reorderItems(
-            cafe.items,
-            dragged.id,
-            dropTarget.id,
-            "item",
-            dropTarget.position === "after" ? "after" : "before",
-          ),
-        });
-      } else if (dragged.kind === "item" && dropTarget.kind === "category") {
-        const moving = cafe.items.find((i) => i.id === dragged.id);
-        if (moving)
-          change({
-            categories,
-            items: [
-              ...cafe.items.filter((i) => i.id !== moving.id),
-              { ...moving, category: dropTarget.id },
-            ],
-          });
-      }
-    }
-    setDragged(null);
-    setDropTarget(null);
-  }
-  function marker(kind: "category" | "item", id: string) {
-    return dropTarget?.kind === kind && dropTarget.id === id
-      ? `drop-${dropTarget.position}`
-      : "";
-  }
-  function addItem() {
-    const next = {
-      id: crypto.randomUUID(),
-      name: "Yeni ürün",
-      description: "",
-      price: 0,
-      category: category || item?.category || categories[0] || "Kahveler",
-      available: true,
-    };
-    change({ items: [...cafe.items, next] });
-    select(`item:${next.id}`);
-  }
-  function moveItem(direction: number) {
-    if (!item) return;
-    const list = [...cafe.items],
-      inCategory = list.filter((i) => i.category === item.category),
-      index = inCategory.findIndex((i) => i.id === item.id),
-      other = inCategory[index + direction];
-    if (!other) return;
-    const a = list.findIndex((i) => i.id === item.id),
-      b = list.findIndex((i) => i.id === other.id);
-    [list[a], list[b]] = [list[b], list[a]];
-    change({ items: list });
-  }
-  function moveCategory(direction: number) {
-    const index = categories.indexOf(category),
-      other = categories[index + direction];
-    if (!other) return;
-    const order = [...categories];
-    [order[index], order[index + direction]] = [
-      order[index + direction],
-      order[index],
-    ];
-    change({
-      categories: order,
-      items: order.flatMap((cat) =>
-        cafe.items.filter((i) => i.category === cat),
-      ),
-    });
-  }
-  function renameCategory() {
-    const name = categoryName.trim();
-    if (!name) {
-      setError("Kategori adı boş olamaz.");
-      return;
-    }
-    if (name !== category && categories.includes(name)) {
-      setError("Bu isimde bir kategori zaten var.");
-      return;
-    }
-    change({
-      categories: categories.map((c) => (c === category ? name : c)),
-      items: cafe.items.map((i) =>
-        i.category === category ? { ...i, category: name } : i,
-      ),
-    });
-    select(`category:${name}`);
   }
   async function save() {
     const submitted = cafe;
@@ -430,21 +240,14 @@ export default function MenuEditor({
         </div>
       )}
       <div className="studio-layout">
-        <aside
-          className="studio-layers"
-          data-dragging={dragged?.kind}
-          onDragLeave={(e) => {
-            if (!e.currentTarget.contains(e.relatedTarget as Node | null))
-              setDropTarget(null);
-          }}
-        >
+        <aside className="studio-layers">
           <div className="studio-panel-title">
             <Layers size={17} />
             <h2>Menü blokları</h2>
           </div>
           <p>
-            Tutamaçtan sürükleyin; yeşil çizgi yerleşeceği konumu gösterir.
-            Ürünü kategori başlığına bırakarak da taşıyabilirsiniz.
+            Menünün görsel bloklarını seçin. Ürün ve kategoriler
+            dashboard&apos;daki Ürünler bölümünden yönetilir.
           </p>
           <button
             className={`layer-row ${selection === "theme" ? "selected" : ""}`}
@@ -457,92 +260,6 @@ export default function MenuEditor({
             onClick={() => select("header")}
           >
             <Type size={17} /> Menü başlığı
-          </button>
-          <div className="layer-divider" />
-          <span className="layer-caption">KATEGORİLER VE ÜRÜNLER</span>
-          {categories.map((cat) => (
-            <div className="layer-category" key={cat}>
-              <button
-                className={`layer-row category ${selection === `category:${cat}` ? "selected" : ""} ${marker("category", cat)}`}
-                onClick={() => select(`category:${cat}`)}
-                onDragOver={(e) => dragOver(e, "category", cat)}
-                onDrop={finishDrop}
-              >
-                <span
-                  className="drag-handle"
-                  draggable
-                  title="Kategoriyi taşı"
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData("text/plain", cat);
-                    e.dataTransfer.effectAllowed = "move";
-                    setDragged({ kind: "category", id: cat });
-                  }}
-                  onDragEnd={() => {
-                    setDragged(null);
-                    setDropTarget(null);
-                  }}
-                >
-                  <GripVertical size={15} />
-                </span>
-                <span>{cat}</span>
-                <small>
-                  {cafe.items.filter((i) => i.category === cat).length}
-                </small>
-              </button>
-              {cafe.items
-                .filter((i) => i.category === cat)
-                .map((i) => (
-                  <button
-                    key={i.id}
-                    className={`layer-row layer-product ${selection === `item:${i.id}` ? "selected" : ""} ${marker("item", i.id)}`}
-                    onClick={() => select(`item:${i.id}`)}
-                    onDragOver={(e) => dragOver(e, "item", i.id)}
-                    onDrop={finishDrop}
-                  >
-                    <span
-                      className="drag-handle"
-                      draggable
-                      title="Ürünü taşı"
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData("text/plain", i.id);
-                        e.dataTransfer.effectAllowed = "move";
-                        setDragged({ kind: "item", id: i.id });
-                      }}
-                      onDragEnd={() => {
-                        setDragged(null);
-                        setDropTarget(null);
-                      }}
-                    >
-                      <GripVertical size={13} />
-                    </span>
-                    <span>{i.name || "Yeni ürün"}</span>
-                    {!i.available && <Eye size={11} />}
-                  </button>
-                ))}
-              {!cafe.items.some((i) => i.category === cat) && (
-                <div
-                  className={`empty-category-drop ${marker("category", cat)}`}
-                  onDragOver={(e) => {
-                    if (dragged?.kind === "item") dragOver(e, "category", cat);
-                  }}
-                  onDrop={finishDrop}
-                >
-                  Ürünü buraya bırakın veya kategori ayarlarından ekleyin.
-                </div>
-              )}
-            </div>
-          ))}
-          <button
-            className="layer-add"
-            onClick={() => {
-              setCategoryForm(true);
-              setInspector(true);
-            }}
-          >
-            <Plus size={16} /> Kategori ekle
-          </button>
-          <button className="layer-add" onClick={addItem}>
-            <Plus size={16} /> Ürün ekle
           </button>
           <div className="layer-divider" />
           <button
@@ -558,15 +275,6 @@ export default function MenuEditor({
         </aside>
         <main className={`studio-canvas ${wide ? "wide-preview" : ""}`}>
           <div className="canvas-toolbar">
-            <button
-              className="inspector-toggle"
-              onClick={() => {
-                setCategoryForm(true);
-                setInspector(true);
-              }}
-            >
-              <Plus size={16} /> Kategori ekle
-            </button>
             <span>
               <MousePointer2 size={14} /> Düzenlemek için bir bloğa tıklayın
             </span>
@@ -623,6 +331,7 @@ export default function MenuEditor({
                 cafe={cafe}
                 onSelectBlock={select}
                 selectedBlock={selection}
+                blockScope="design"
               />
             </div>
             <p className="canvas-footnote">
@@ -633,15 +342,11 @@ export default function MenuEditor({
         <aside className={`studio-inspector ${inspector ? "open" : ""}`}>
           <div className="studio-panel-title">
             <h2>
-              {item
-                ? "Ürün ayarları"
-                : category
-                  ? "Kategori ayarları"
-                  : selection === "header"
-                    ? "Başlık ayarları"
-                    : selection === "footer"
-                      ? "Fincan imzası"
-                      : "Genel görünüm"}
+              {selection === "header"
+                ? "Başlık ayarları"
+                : selection === "footer"
+                  ? "Fincan imzası"
+                  : "Genel görünüm"}
             </h2>
             <button
               className="icon-btn close-inspector"
@@ -652,37 +357,6 @@ export default function MenuEditor({
             </button>
           </div>
           <div className="inspector-content">
-            {categoryForm && (
-              <form
-                className="category-create"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  addCategory();
-                }}
-              >
-                <label>
-                  Yeni kategori adı
-                  <input
-                    autoFocus
-                    required
-                    maxLength={60}
-                    placeholder="Örn. Soğuk içecekler"
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value)}
-                  />
-                </label>
-                <button className="btn primary" type="submit">
-                  Kategori oluştur
-                </button>
-                <button
-                  className="btn"
-                  type="button"
-                  onClick={() => setCategoryForm(false)}
-                >
-                  Vazgeç
-                </button>
-              </form>
-            )}
             {error && (
               <div className="error-banner" role="alert">
                 {error}
@@ -936,210 +610,6 @@ export default function MenuEditor({
                 </p>
               </>
             )}
-            {category && (
-              <>
-                <span className="inspector-kicker">KATEGORİ</span>
-                <label>
-                  Kategori adı
-                  <input
-                    maxLength={60}
-                    value={categoryName}
-                    onChange={(e) => setCategoryName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        renameCategory();
-                      }
-                    }}
-                  />
-                </label>
-                <button
-                  className="btn full"
-                  onClick={renameCategory}
-                  disabled={categoryName === category}
-                >
-                  Adı uygula <Check size={15} />
-                </button>
-                <div className="divider" />
-                <h3>Kategori sırası</h3>
-                <div className="inspector-row">
-                  <button
-                    className="btn"
-                    disabled={categories.indexOf(category) === 0}
-                    onClick={() => moveCategory(-1)}
-                  >
-                    <MoveUp size={15} /> Yukarı
-                  </button>
-                  <button
-                    className="btn"
-                    disabled={
-                      categories.indexOf(category) === categories.length - 1
-                    }
-                    onClick={() => moveCategory(1)}
-                  >
-                    <MoveDown size={15} /> Aşağı
-                  </button>
-                </div>
-                <button className="btn primary full" onClick={addItem}>
-                  <Plus size={16} /> Kategoriye ürün ekle
-                </button>
-                <p className="inspector-hint">
-                  Bu kategoride{" "}
-                  {cafe.items.filter((i) => i.category === category).length}{" "}
-                  ürün var. Adı değiştirdiğinizde hepsi güncellenir.
-                </p>
-              </>
-            )}
-            {item && (
-              <>
-                <span className="inspector-kicker">ÜRÜN İÇERİĞİ</span>
-                <label>
-                  Fotoğraf
-                  <div className="item-photo-field">
-                    {item.photo ? (
-                      <img
-                        src={item.photo}
-                        alt=""
-                        className="item-photo-preview"
-                      />
-                    ) : (
-                      <span className="item-photo-empty">
-                        <Camera size={20} />
-                      </span>
-                    )}
-                    <div className="item-photo-actions">
-                      <label className={`btn ${logoBusy ? "disabled" : ""}`}>
-                        {item.photo ? "Değiştir" : "Yükle"}
-                        <input
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp"
-                          disabled={logoBusy}
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            e.target.value = "";
-                            if (!file) return;
-                            setLogoBusy(true);
-                            setError("");
-                            try {
-                              const blob = await preparePhoto(file);
-                              const url = await uploadImage(blob, "photos");
-                              changeItem({ photo: url });
-                            } catch (err) {
-                              setError(
-                                err instanceof Error
-                                  ? err.message
-                                  : "Fotoğraf yüklenemedi.",
-                              );
-                            } finally {
-                              setLogoBusy(false);
-                            }
-                          }}
-                        />
-                      </label>
-                      {item.photo && (
-                        <button
-                          type="button"
-                          className="btn"
-                          onClick={() => changeItem({ photo: null })}
-                        >
-                          Kaldır
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </label>
-                <label>
-                  Ürün adı
-                  <input
-                    maxLength={100}
-                    value={item.name}
-                    onChange={(e) => changeItem({ name: e.target.value })}
-                  />
-                </label>
-                <label>
-                  Açıklama
-                  <textarea
-                    rows={3}
-                    maxLength={300}
-                    value={item.description}
-                    onChange={(e) =>
-                      changeItem({ description: e.target.value })
-                    }
-                  />
-                </label>
-                <label>
-                  Fiyat (₺)
-                  <input
-                    type="number"
-                    min="0"
-                    max="1000000"
-                    step="0.01"
-                    value={item.price}
-                    onChange={(e) =>
-                      changeItem({ price: Number(e.target.value) })
-                    }
-                  />
-                </label>
-                <label>
-                  Kategori
-                  <input
-                    list="studio-categories"
-                    maxLength={60}
-                    value={item.category}
-                    onChange={(e) => changeItem({ category: e.target.value })}
-                  />
-                  <datalist id="studio-categories">
-                    {categories.map((c) => (
-                      <option key={c} value={c} />
-                    ))}
-                  </datalist>
-                </label>
-                <label className="toggle-label">
-                  <span>
-                    <strong>Menüde göster</strong>
-                    <small>Gizli ürünler misafirlere görünmez.</small>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={item.available}
-                    onChange={(e) =>
-                      changeItem({ available: e.target.checked })
-                    }
-                  />
-                </label>
-                <div className="divider" />
-                <h3>Kategori içindeki sıra</h3>
-                <div className="inspector-row">
-                  <button
-                    className="btn"
-                    disabled={
-                      cafe.items.filter((i) => i.category === item.category)[0]
-                        ?.id === item.id
-                    }
-                    onClick={() => moveItem(-1)}
-                  >
-                    <MoveUp size={15} /> Yukarı
-                  </button>
-                  <button
-                    className="btn"
-                    disabled={
-                      cafe.items
-                        .filter((i) => i.category === item.category)
-                        .at(-1)?.id === item.id
-                    }
-                    onClick={() => moveItem(1)}
-                  >
-                    <MoveDown size={15} /> Aşağı
-                  </button>
-                </div>
-                <button
-                  className="btn danger-outline full"
-                  onClick={() => setDeleteId(item.id)}
-                >
-                  <Trash2 size={16} /> Ürünü sil
-                </button>
-              </>
-            )}
             {selection === "footer" && (
               <div className="locked-block">
                 <span>
@@ -1160,43 +630,6 @@ export default function MenuEditor({
         <div className="toast" role="status">
           <Check size={17} />
           {toast}
-        </div>
-      )}
-      {deleteId && (
-        <div className="confirm-overlay">
-          <section
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="delete-title"
-            className="confirm-card"
-          >
-            <h2 id="delete-title">Ürün silinsin mi?</h2>
-            <p>
-              {cafe.items.find((i) => i.id === deleteId)?.name} menüden
-              kaldırılacak. Değişiklik kaydettiğinizde uygulanır.
-            </p>
-            <div className="heading-actions">
-              <button
-                className="btn"
-                autoFocus
-                onClick={() => setDeleteId(null)}
-              >
-                Vazgeç
-              </button>
-              <button
-                className="btn destructive"
-                onClick={() => {
-                  change({
-                    items: cafe.items.filter((i) => i.id !== deleteId),
-                  });
-                  setDeleteId(null);
-                  select("theme");
-                }}
-              >
-                Ürünü sil
-              </button>
-            </div>
-          </section>
         </div>
       )}
     </div>

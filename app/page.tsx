@@ -12,11 +12,21 @@ export default async function Page({
     "overview",
     "cafes",
     "menus",
+    "products",
+    "orders",
     "import",
     "stats",
     "settings",
   ].includes(view || "")
-    ? (view as "overview" | "cafes" | "menus" | "import" | "stats" | "settings")
+    ? (view as
+        | "overview"
+        | "cafes"
+        | "menus"
+        | "products"
+        | "orders"
+        | "import"
+        | "stats"
+        | "settings")
     : "overview";
   return <Dashboard initialTab={initialTab} />;
 }
