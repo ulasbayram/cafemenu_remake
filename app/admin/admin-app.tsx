@@ -512,6 +512,73 @@ function UsersPanel({ users }: { users: AdminUser[] }) {
   );
 }
 
+function CafeQrPreview({ cafeId }: { cafeId: string }) {
+  const api = useAdminApi();
+  const [urls, setUrls] = useState<{ label: string; src: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const { slug, links } = await api<{
+          slug: string;
+          links: { table: number; path: string }[];
+        }>(`/api/admin/cafes/${cafeId}/table-links`);
+        const { loadFincanLogo, qrPngWithLogo } = await import(
+          "@/lib/qr-composite"
+        );
+        const logo = await loadFincanLogo();
+        const rendered: { label: string; src: string }[] = [
+          {
+            label: "Menü QR",
+            src: await qrPngWithLogo(`/menu/${slug}`, logo),
+          },
+        ];
+        for (const link of links) {
+          rendered.push({
+            label: `Masa ${link.table}`,
+            src: await qrPngWithLogo(link.path, logo),
+          });
+        }
+        if (active) setUrls(rendered);
+      } catch (reason) {
+        if (active) setError((reason as Error).message);
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [api, cafeId]);
+
+  if (loading)
+    return (
+      <div className="admin-qr-loading">
+        <LoaderCircle className="spin" size={18} /> QR kodlar hazırlanıyor…
+      </div>
+    );
+  if (error)
+    return (
+      <div className="error-banner" role="alert">
+        {error}
+      </div>
+    );
+  return (
+    <div className="admin-qr-grid">
+      {urls.map((qr) => (
+        <figure key={qr.label}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={qr.src} alt={qr.label} width={180} height={180} />
+          <figcaption>{qr.label}</figcaption>
+        </figure>
+      ))}
+    </div>
+  );
+}
+
 function CafeDrawer({
   cafe,
   onClose,
@@ -568,8 +635,15 @@ function CafeDrawer({
             </div>
           ))}
         </dl>
+        <div className="admin-qr-section">
+          <h3>QR kodlar</h3>
+          <p className="muted small-text">
+            Baskı ve çıkartma gönderimi için önizleme.
+          </p>
+          <CafeQrPreview cafeId={cafe.id} />
+        </div>
         <div className="admin-drawer-actions">
-          <Link href={`/${cafe.slug}`} target="_blank">
+          <Link href={`/menu/${cafe.slug}`} target="_blank">
             Canlı menüyü aç <ExternalLink size={15} />
           </Link>
           <button

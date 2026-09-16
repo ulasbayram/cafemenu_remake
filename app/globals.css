@@ -6478,3 +6478,48 @@ html[data-menu-theme="dark"] body:has(.public-shell) {
   margin-bottom: 24px;
   background: #fff;
 }
+
+/* --- admin QR preview (print/sticker review) --- */
+.admin-qr-section {
+  margin: 16px 0 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line, #e3e6dc);
+}
+.admin-qr-section h3 {
+  font-size: 14px;
+  margin: 0 0 2px;
+}
+.admin-qr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.admin-qr-grid figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.admin-qr-grid img {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line, #e3e6dc);
+  border-radius: 8px;
+  background: #fff;
+}
+.admin-qr-grid figcaption {
+  font-size: 12px;
+  font-weight: 600;
+}
+.admin-qr-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  color: var(--muted, #8a938a);
+  font-size: 13px;
+}

@@ -6,34 +6,6 @@ import { api } from "@/lib/client-api";
 import { loadFincanLogo, qrCanvasWithLogo } from "@/lib/qr-composite";
 import type { Cafe } from "@/lib/menu";
 
-/**
- * Draws text centered at (cx, y), shrinking the font until it fits maxWidth
- * (floor 44px), then ellipsis-truncating. Prevents cross-cell bleed.
- */
-function fitText(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  cx: number,
-  y: number,
-  maxWidth: number,
-  startSize: number,
-) {
-  let size = startSize;
-  ctx.fillStyle = "#4b5c55";
-  ctx.textAlign = "center";
-  let label = text;
-  while (size > 44) {
-    ctx.font = `400 ${size}px sans-serif`;
-    if (ctx.measureText(label).width <= maxWidth) break;
-    size -= 6;
-  }
-  ctx.font = `400 ${size}px sans-serif`;
-  while (label.length > 1 && ctx.measureText(label + "…").width > maxWidth)
-    label = label.slice(0, -1);
-  if (label !== text) label += "…";
-  ctx.fillText(label, cx, y);
-}
-
 /** A4 @300dpi canvas dimensions. */
 const PAGE_W = 2480;
 const PAGE_H = 3508;
@@ -102,20 +74,13 @@ export default function PrintQrSheet() {
             ctx.fillStyle = "#172f27";
             ctx.font = "700 110px sans-serif";
             ctx.textAlign = "center";
+            // No business name on cards — just the table number (or nothing
+            // for the menu-only card). Text wider than the cell used to bleed
+            // into neighboring cards.
             ctx.fillText(
-              cell.table > 0 ? `Masa ${cell.table}` : cafe.name,
+              cell.table > 0 ? `Masa ${cell.table}` : "",
               x + CELL / 2,
               y + qrSize + 150,
-            );
-            // Subtitle: cafe name only (table is already on the line above),
-            // shrunk to fit the cell so neighboring cards never overlap.
-            fitText(
-              ctx,
-              cafe.name,
-              x + CELL / 2,
-              y + qrSize + 250,
-              CELL - 40,
-              78,
             );
           });
           rendered.push(page.toDataURL("image/png"));
@@ -151,8 +116,8 @@ export default function PrintQrSheet() {
         <div>
           <h1>Masa QR kâğıtları</h1>
           <p>
-            {meta?.name} · A4 · 300dpi · her kart: QR + masa numarası + işletme
-            adı + fincan logosu
+            {meta?.name} · A4 · 300dpi · her kart: QR + masa numarası + fincan
+            logosu
           </p>
         </div>
         <button
