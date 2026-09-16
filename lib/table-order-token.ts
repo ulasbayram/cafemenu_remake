@@ -1,10 +1,6 @@
 function secret() {
   const globals = globalThis as unknown as Record<string, string | undefined>;
-  const value =
-    globals.FINCAN_TABLE_QR_SECRET ??
-    globals.FINCAN_SUPABASE_SECRET_KEY ??
-    process.env?.TABLE_QR_SECRET ??
-    process.env?.SUPABASE_SECRET_KEY;
+  const value = globals.FINCAN_TABLE_QR_SECRET ?? process.env?.TABLE_QR_SECRET;
   if (!value) throw new Error("TABLE_QR_SECRET is not configured.");
   return value;
 }
@@ -17,6 +13,10 @@ function base64Url(bytes: ArrayBuffer) {
     .replace(/=+$/, "");
 }
 
+// 12 base64url chars = 72 bits. Brute force at 100 req/s ≈ 10^16 years; with
+// rate limits it's unreachable. Keeps QR payloads small for logo embedding.
+const TOKEN_LENGTH = 12;
+
 export async function signTableOrder(cafeId: string, table: number) {
   const key = await crypto.subtle.importKey(
     "raw",
@@ -25,13 +25,12 @@ export async function signTableOrder(cafeId: string, table: number) {
     false,
     ["sign"],
   );
-  return base64Url(
-    await crypto.subtle.sign(
-      "HMAC",
-      key,
-      new TextEncoder().encode(`${cafeId}:${table}`),
-    ),
+  const mac = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(`${cafeId}:${table}`),
   );
+  return base64Url(mac).slice(0, TOKEN_LENGTH);
 }
 
 export async function verifyTableOrder(
@@ -39,6 +38,7 @@ export async function verifyTableOrder(
   table: number,
   token: string,
 ) {
-  if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return false;
+  if (typeof token !== "string" || !/^[A-Za-z0-9_-]{12}$/.test(token))
+    return false;
   return token === (await signTableOrder(cafeId, table));
 }

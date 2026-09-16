@@ -1,70 +1,24 @@
-import { svc } from "@/db";
-import PublicMenu from "../public-menu";
-import { notFound } from "next/navigation";
-import { verifyTableOrder } from "@/lib/table-order-token";
+import { permanentRedirect } from "next/navigation";
+
+/**
+ * Legacy root-level menu URLs (printed QRs pre-dating /menu/{slug}) keep
+ * working: permanent redirect to the same path under /menu, preserving
+ * ?table&order params. Browsers follow it, so printed cards never need
+ * reprinting.
+ */
 export const dynamic = "force-dynamic";
-export default async function Page({
+export default async function LegacyMenuRedirect({
   params,
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ table?: string; order?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { slug } = await params;
-  const { table: tableParam, order: orderToken } = await searchParams;
-  const { data } = await svc()
-    .from("cafes")
-    .select(
-      "id, name, location, social, published, table_count, logo_url, data, created_at",
-    )
-    .eq("slug", slug)
-    .limit(1);
-  const r = data?.[0];
-  if (!r) notFound();
-  const c = (r.data ?? {}) as Record<string, unknown>;
-  if (!r.published) notFound();
-  const tableCount = Number(r.table_count ?? 0);
-  const table =
-    tableParam && /^[0-9]+$/.test(tableParam) && Number(tableParam) >= 1
-      ? Math.min(Number(tableParam), Math.max(tableCount, 1))
-      : null;
-  const canOrder = !!(
-    table &&
-    orderToken &&
-    (await verifyTableOrder(r.id, table, orderToken))
-  );
-  const defaultTheme =
-    c.defaultTheme === "dark" || c.defaultTheme === "light"
-      ? c.defaultTheme
-      : null;
-  return (
-    <>
-      {defaultTheme && (
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `try{var s=localStorage.getItem('fincan-menu-theme')}catch(e){s=null}document.documentElement.dataset.menuTheme=s==='dark'||s==='light'?s:'${defaultTheme}'`,
-          }}
-        />
-      )}
-      <PublicMenu
-        cafe={
-          {
-            ...c,
-            slug,
-            name: r.name,
-            location: r.location,
-            socialLinks: r.social as Record<string, string> | undefined,
-            published: r.published,
-            tableCount,
-            logoUrl:
-              r.logo_url ?? (c.logoUrl as string | undefined) ?? undefined,
-            id: r.id,
-            createdAt: r.created_at,
-          } as never
-        }
-        table={table}
-        orderToken={canOrder ? orderToken : null}
-      />
-    </>
-  );
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(await searchParams)) {
+    if (typeof value === "string") query.set(key, value);
+  }
+  const qs = query.toString();
+  permanentRedirect(`/menu/${slug}${qs ? `?${qs}` : ""}`);
 }

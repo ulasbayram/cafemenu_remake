@@ -1350,7 +1350,7 @@ export default function Dashboard({
                 <span>/</span>
                 <input
                   required
-                  pattern="[a-z][a-z0-9-]{2,59}"
+                  pattern="[a-z0-9][a-z0-9-]{2,59}"
                   value={newSlug}
                   onChange={(e) => setNewSlug(e.target.value)}
                   placeholder="mola-coffee"

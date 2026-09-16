@@ -1,5 +1,15 @@
 import { z } from "zod";
 import { socialLinksSchema } from "./social-links";
+
+/** Per-cafe ordering policy. token = signed QR links only (default);
+ * token+daily = QR plus a daily code shown in the dashboard; open = any
+ * menu visitor may order for a valid table number. */
+export const orderPolicySchema = z.object({
+  enabled: z.boolean().default(true),
+  mode: z.enum(["token", "token+daily", "open"]).default("token"),
+});
+export type OrderPolicy = z.infer<typeof orderPolicySchema>;
+
 export const itemSchema = z.object({
   id: z.string().min(1).max(80),
   name: z.string().trim().min(1).max(100),
@@ -11,6 +21,9 @@ export const itemSchema = z.object({
 });
 export const cafeSchema = z.object({
   tableCount: z.number().int().min(0).max(200).optional(),
+  orderPolicy: orderPolicySchema.optional(),
+  lat: z.number().min(-90).max(90).nullable().optional(),
+  lng: z.number().min(-180).max(180).nullable().optional(),
   socialLinks: socialLinksSchema.optional(),
   defaultTheme: z.enum(["light", "dark"]).nullable().optional(),
   logoSize: z.enum(["small", "medium", "large"]).optional(),
@@ -20,14 +33,9 @@ export const cafeSchema = z.object({
     .nullable()
     .optional(),
   name: z.string().trim().min(2).max(80),
-  slug: z
-    .string()
-    .regex(/^[a-z][a-z0-9-]{2,59}$/)
-    .refine(
-      (s) =>
-        !["api", "admin", "auth", "favicon", "login", "editor"].includes(s),
-      "Bu adres kullanılamaz.",
-    ),
+  // Slugs live under /menu/{slug} — no route collisions to dodge, so only
+  // shape is enforced: lowercase alphanumerics/hyphens, letter-or-digit start.
+  slug: z.string().regex(/^[a-z0-9][a-z0-9-]{2,59}$/),
   subtitle: z.string().max(150),
   location: z.string().max(150),
   logoUrl: z.string().url().max(500).nullable().optional(),
@@ -151,20 +159,12 @@ export function slugify(s: string) {
     .slice(0, 60);
 }
 
-const reservedSlugs = new Set([
-  "api",
-  "admin",
-  "auth",
-  "favicon",
-  "login",
-  "editor",
-]);
-
-/** Produces a route-safe menu address even for short or number-first cafe names. */
+/** Normalizes a typed name/slug into a valid slug under /menu/{slug}.
+ * Only length guards remain — digit-first slugs are fine now that cafe pages
+ * live in their own namespace. */
 export function cafeSlug(input: string, cafeName = ""): string {
-  let value = slugify(input) || slugify(cafeName) || "kafe";
-  if (!/^[a-z]/.test(value)) value = `kafe-${value}`;
-  if (reservedSlugs.has(value)) value = `${value}-menu`;
+  let value = slugify(input) || slugify(cafeName);
+  if (!value) value = "kafe";
   if (value.length < 3) value = `${value}-kafe`;
   return value.slice(0, 60).replace(/-+$/, "");
 }

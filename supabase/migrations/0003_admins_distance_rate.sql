@@ -7,8 +7,7 @@ create table if not exists public.admins (
 alter table public.admins enable row level security;
 -- No policies: only service_role (server) reads; dashboard INSERT by owners.
 
-alter table public.cafes add column if not exists lat double precision;
-alter table public.cafes add column if not exists lng numeric(9,6) check (lng between -180 and 180);
+-- Cafe coords (lat/lng) live inside cafes.data JSONB alongside orderPolicy.
 
 alter table public.orders add column if not exists distance_km smallint;
 alter table public.orders add column if not exists distance_source text check (distance_source in ('gps','ip'));

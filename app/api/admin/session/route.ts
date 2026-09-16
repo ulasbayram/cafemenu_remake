@@ -1,4 +1,4 @@
-import { configuredAdminIds, verifyAdmin, verifyRequest } from "@/lib/jwt";
+import { verifyAdmin, verifyRequest } from "@/lib/jwt";
 import { fail } from "@/lib/server";
 
 export async function GET(request: Request) {
@@ -8,11 +8,6 @@ export async function GET(request: Request) {
       return Response.json(
         { error: "Devam etmek için giriş yapın." },
         { status: 401 },
-      );
-    if (!configuredAdminIds())
-      return Response.json(
-        { error: "Admin erişim listesi henüz iki hesapla yapılandırılmamış." },
-        { status: 503 },
       );
     const admin = await verifyAdmin(request);
     if (!admin)

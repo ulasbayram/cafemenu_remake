@@ -3,7 +3,6 @@ import { svc } from "@/db";
 export type SessionUser = {
   id: string;
   email: string;
-  role: string | null;
 };
 
 /** Small env reader that works on Workers and Node. */
@@ -34,36 +33,35 @@ export async function verifyRequest(
       });
       return null;
     }
-    const role = data.user.app_metadata?.role;
     return {
       id: data.user.id,
       email: data.user.email ?? "",
-      role: typeof role === "string" ? role : null,
     };
   } catch {
     return null;
   }
 }
 
-/** Admin variant: requires both the signed role and the two-account allowlist. */
+/**
+ * Admin check: the caller's user id must exist in the `admins` table.
+ * The table is managed by owners directly in the Supabase dashboard
+ * (INSERT/DELETE) — no redeploys, no env vars. RLS-blocked for everyone
+ * else; only the service client reads it.
+ */
 export async function verifyAdmin(
   request: Request,
 ): Promise<SessionUser | null> {
   const user = await verifyRequest(request);
-  const allowlist = configuredAdminIds();
-  return user?.role === "admin" && allowlist?.includes(user.id) ? user : null;
-}
-
-/** Exactly two account UUIDs form the server-side admin allowlist. */
-export function configuredAdminIds(): string[] | null {
-  const ids = [
-    ...new Set(
-      (env("ADMIN_USER_IDS") ?? "")
-        .split(",")
-        .map((id) => id.trim().toLowerCase())
-        .filter(Boolean),
-    ),
-  ];
-  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-  return ids.length === 2 && ids.every((id) => uuid.test(id)) ? ids : null;
+  if (!user) return null;
+  const { data, error } = await svc()
+    .schema("public")
+    .from("admins")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .limit(1);
+  if (error) {
+    console.warn("Admin check failed", error.message);
+    return null;
+  }
+  return data?.length ? user : null;
 }
