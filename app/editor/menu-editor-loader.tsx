@@ -24,7 +24,7 @@ export default function MenuEditorLoader() {
       .catch((e) => {
         if (!active) return;
         const message = (e as Error).message || "";
-        setError(message || "Kafe yüklenemedi.");
+        setError(message || "İşletme yüklenemedi.");
         if (message === "Devam etmek için giriş yapın.")
           window.location.assign(
             new URL("/login", window.location.origin).href,
@@ -48,7 +48,7 @@ export default function MenuEditorLoader() {
         </div>
         <div className="auth-main">
           <form className="auth-form" onSubmit={(e) => e.preventDefault()}>
-            <h2>Kafe açılamadı.</h2>
+            <h2>İşletme açılamadı.</h2>
             <p>{error}</p>
             <button className="btn primary full" onClick={() => router.push("/?view=menus")}>
               Menü yönetimine dön

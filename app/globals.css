@@ -194,6 +194,9 @@ select {
   display: flex;
   flex-direction: column;
   gap: 7px;
+  overflow-y: auto;
+  min-height: 0;
+  flex-shrink: 1;
 }
 .sidebar nav button,
 .settings-nav {
@@ -238,6 +241,7 @@ select {
 .sidebar-bottom {
   margin-top: auto;
   padding-top: 36px;
+  flex-shrink: 0;
 }
 .small-promo {
   background: #f4f6ef;
@@ -3379,6 +3383,14 @@ html[data-theme="dark"] body {
 [data-theme="dark"] :is(.sidebar nav button, .settings-nav, .layer-row) {
   color: #adbaaa;
 }
+[data-theme="dark"] .nav-count {
+  background: #2f4432;
+  color: #cfe3c8;
+}
+[data-theme="dark"] .nav-badge {
+  background: #3a3223;
+  color: #e8d5a3;
+}
 [data-theme="dark"]
   :is(.sidebar nav button.active, .settings-nav.active, .layer-row.selected) {
   background: #2a402e;
@@ -6200,8 +6212,13 @@ html[data-menu-theme="dark"] body:has(.public-shell) {
   background: #202420;
 }
 [data-menu-theme="dark"] .menu-order-add {
-  color: var(--menu-accent);
-  border-color: #444;
+  background: var(--menu-accent);
+  color: #171717;
+  border-color: var(--menu-accent);
+}
+[data-menu-theme="dark"] .menu-order-add:hover {
+  color: #171717;
+  filter: brightness(1.08);
 }
 [data-menu-theme="dark"] .order-sheet {
   color: #edf2ed;
@@ -6276,4 +6293,162 @@ html[data-menu-theme="dark"] body:has(.public-shell) {
     max-height: 92vh;
     border-radius: 18px 18px 0 0;
   }
+}
+
+/* --- suspicious distance flag --- */
+.order-distance {
+  font-size: 11px;
+  color: var(--muted, #8a938a);
+  margin-left: 8px;
+  white-space: nowrap;
+}
+.order-distance-warn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #fdf3e3;
+  color: #9a5b12;
+  border: 1px solid #f0dcae;
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-weight: 700;
+}
+[data-theme="dark"] .order-distance-warn {
+  background: #3a2c14;
+  color: #f0c979;
+  border-color: #6b5223;
+}
+
+/* --- daily code card (orders toolbar) --- */
+.daily-code-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: 1px dashed var(--line, #e3e6dc);
+  border-radius: 10px;
+  padding: 8px 18px;
+  background: var(--surface-2, #f7f8f3);
+}
+.daily-code-card span {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted, #8a938a);
+}
+.daily-code-card strong {
+  font-size: 26px;
+  letter-spacing: 4px;
+  font-family: monospace;
+}
+.daily-code-card small {
+  font-size: 10px;
+  color: var(--muted, #8a938a);
+}
+[data-theme="dark"] .daily-code-card {
+  background: #222b24;
+  border-color: #33402f;
+}
+
+/* --- admin editor workspace tabs --- */
+.admin-editor-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+.admin-editor-tabs {
+  display: flex;
+  gap: 6px;
+}
+.admin-editor-tabs button {
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--line, #e3e6dc);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.admin-editor-tabs button.active {
+  background: var(--admin-accent, #245b46);
+  border-color: var(--admin-accent, #245b46);
+  color: #fff;
+}
+.admin-editor-toast {
+  animation: admin-toast-fade 3s forwards;
+}
+@keyframes admin-toast-fade {
+  0%, 80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* --- open-mode table picker (guest menu) --- */
+.table-picker-banner {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+.table-picker-banner label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+}
+.table-picker-banner select {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--public-border, #ddd);
+  background: var(--public-surface, #fff);
+  color: inherit;
+  font-size: 15px;
+}
+
+/* --- daily code input (guest cart) --- */
+.daily-code-field {
+  display: block;
+  margin: 12px 0 4px;
+  font-weight: 600;
+}
+.daily-code-field input {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  font-family: monospace;
+  font-size: 17px;
+}
+
+/* --- order policy controls (dashboard settings) --- */
+.location-capture {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 0;
+}
+
+/* --- print sheet page --- */
+.print-sheet-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+.print-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.print-sheet-preview {
+  width: 100%;
+  height: auto;
+  border: 1px solid #e3e6dc;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  background: #fff;
 }

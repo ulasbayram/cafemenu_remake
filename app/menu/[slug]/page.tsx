@@ -33,13 +33,17 @@ export default async function Page({
     tableParam && /^[0-9]+$/.test(tableParam) && Number(tableParam) >= 1
       ? Math.min(Number(tableParam), Math.max(tableCount, 1))
       : null;
-  const canOrder = !!(
-    table &&
-    policy.enabled &&
+  // token modes require a scanned QR (table + valid HMAC token). Open mode
+  // only needs ordering on and tables defined — the guest picks the table.
+  const canOrder =
+    !!policy.enabled &&
+    tableCount > 0 &&
     (policy.mode === "open" ||
-      (orderToken &&
-        (await verifyTableOrder(r.id, table, orderToken))))
-  );
+      !!(
+        table &&
+        orderToken &&
+        (await verifyTableOrder(r.id, table, orderToken))
+      ));
   const defaultTheme =
     c.defaultTheme === "dark" || c.defaultTheme === "light"
       ? c.defaultTheme
@@ -70,7 +74,7 @@ export default async function Page({
           } as never
         }
         table={table}
-        orderToken={canOrder ? (orderToken ?? "open") : null}
+        orderToken={canOrder ? (orderToken ?? (policy.mode === "open" ? "open" : null)) : null}
         orderMode={canOrder ? policy.mode : null}
       />
     </>

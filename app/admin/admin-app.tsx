@@ -155,61 +155,15 @@ export default function AdminApp() {
       </main>
     );
 
-  if (auth === "denied")
+  // Non-admins never learn the panel exists: silent redirect, no UI.
+  if (auth === "denied") {
+    router.replace("/");
     return (
-      <main className="admin-login-page">
-        <section className="admin-login-story">
-          <div className="admin-wordmark">
-            <span>
-              <ShieldCheck size={22} />
-            </span>
-            fincan <b>control</b>
-          </div>
-          <div>
-            <span className="admin-eyebrow">OPERASYON MERKEZİ</span>
-            <h1>
-              Tüm kafeler,
-              <br />
-              tek güvenli panel.
-            </h1>
-            <p>
-              Hesap durumlarını izleyin, destek taleplerinde menüye doğrudan
-              yardımcı olun ve platform hareketini takip edin.
-            </p>
-          </div>
-          <small>Yetkili ekip erişimi · İşlemler sunucuda doğrulanır</small>
-        </section>
-        <section className="admin-login-main">
-          <div className="admin-login-card admin-access-card">
-            <span className="admin-login-icon">
-              <ShieldCheck size={23} />
-            </span>
-            <span className="admin-eyebrow">ERİŞİM REDDEDİLDİ</span>
-            <h2>Bu hesabın admin yetkisi yok.</h2>
-            <p>
-              <strong>{adminEmail}</strong> normal kullanıcı olarak giriş
-              yapmış. Admin paneli yalnızca önceden belirlenen iki hesaba
-              açıktır.
-            </p>
-            <div className="admin-login-error" role="alert">
-              {accessError}
-            </div>
-            <Link href="/" className="admin-primary-button admin-login-submit">
-              Uygulamaya dön <ArrowRight size={17} />
-            </Link>
-            <button
-              className="admin-back-link"
-              onClick={async () => {
-                await supabase().auth.signOut();
-                router.push("/login?next=%2Fadmin");
-              }}
-            >
-              Farklı hesapla normal giriş yap
-            </button>
-          </div>
-        </section>
+      <main className="admin-console">
+        <LoaderCircle className="spin" size={24} />
       </main>
     );
+  }
 
   return (
     <main className="admin-console">
@@ -231,7 +185,7 @@ export default function AdminApp() {
             className={tab === "cafes" ? "active" : ""}
             onClick={() => setTab("cafes")}
           >
-            <Store size={18} /> Kafe hesapları
+            <Store size={18} /> İşletme hesapları
           </button>
           <button
             className={tab === "users" ? "active" : ""}
@@ -267,7 +221,7 @@ export default function AdminApp() {
               {tab === "overview"
                 ? "Genel bakış"
                 : tab === "cafes"
-                  ? "Kafe hesapları"
+                  ? "İşletme hesapları"
                   : "Kullanıcılar"}
             </h1>
           </div>
@@ -276,7 +230,7 @@ export default function AdminApp() {
               <i /> Sistem aktif
             </span>
             <Link href="/" target="_blank">
-              Kafe uygulamasını aç <ExternalLink size={14} />
+              İşletme uygulamasını aç <ExternalLink size={14} />
             </Link>
           </div>
         </header>
@@ -340,7 +294,7 @@ function OverviewPanel({
     );
   const metrics = [
     {
-      label: "Toplam kafe",
+      label: "Toplam işletme",
       value: overview.cafes,
       note: `${overview.newCafes7d} yeni / 7 gün`,
       icon: Building2,
@@ -358,7 +312,7 @@ function OverviewPanel({
       icon: Activity,
     },
     {
-      label: "Aktif kafe",
+      label: "Aktif işletme",
       value: overview.activeCafes30d,
       note: "son 30 gün",
       icon: CircleGauge,
@@ -424,7 +378,7 @@ function OverviewPanel({
             <strong>{formatDate(overview.ratesFetchedAt, true)}</strong>
           </div>
           <button onClick={onOpenCafes}>
-            Kafe hesaplarını incele <ChevronRight size={16} />
+            İşletme hesaplarını incele <ChevronRight size={16} />
           </button>
         </article>
       </section>
@@ -453,7 +407,7 @@ function CafePanel({
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Kafe, adres veya hesap e-postası ara"
+            placeholder="İşletme, adres veya hesap e-postası ara"
           />
         </label>
         <span>{cafes.length} hesap gösteriliyor</span>
@@ -461,7 +415,7 @@ function CafePanel({
       {!loading && cafes.length === 0 ? (
         <div className="admin-empty">
           <Store size={28} />
-          <h2>Kafe bulunamadı</h2>
+          <h2>İşletme bulunamadı</h2>
           <p>Arama ifadenizi değiştirip tekrar deneyin.</p>
         </div>
       ) : (
@@ -511,12 +465,14 @@ function CafePanel({
                 <button onClick={() => onSelect(cafe)}>
                   Bilgileri gör <Eye size={15} />
                 </button>
-                <Link
+                <button
                   className="admin-support-link"
-                  href={`/admin/editor/${cafe.id}`}
+                  onClick={() =>
+                    window.location.assign(`/admin/editor/${cafe.id}`)
+                  }
                 >
                   Destek için düzenle <ArrowRight size={15} />
-                </Link>
+                </button>
               </footer>
             </article>
           ))}
@@ -546,7 +502,7 @@ function UsersPanel({ users }: { users: AdminUser[] }) {
               <small>Kayıt: {formatDate(user.createdAt)}</small>
             </div>
             <span>
-              <b>{user.cafes}</b> kafe
+              <b>{user.cafes}</b> işletme
             </span>
             <span>
               Son giriş: <b>{formatDate(user.lastSignInAt, true)}</b>
@@ -592,7 +548,7 @@ function CafeDrawer({
             )}
           </span>
           <div>
-            <span className="admin-eyebrow">KAFE HESABI</span>
+            <span className="admin-eyebrow">İŞLETME HESABI</span>
             <h2>{cafe.name}</h2>
           </div>
           <button aria-label="Kapat" onClick={onClose}>
@@ -618,12 +574,12 @@ function CafeDrawer({
           <Link href={`/${cafe.slug}`} target="_blank">
             Canlı menüyü aç <ExternalLink size={15} />
           </Link>
-          <Link
+          <button
             className="admin-primary-button"
-            href={`/admin/editor/${cafe.id}`}
+            onClick={() => window.location.assign(`/admin/editor/${cafe.id}`)}
           >
             <UtensilsCrossed size={16} /> Menüyü düzenle
-          </Link>
+          </button>
         </div>
       </aside>
     </div>

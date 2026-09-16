@@ -8,7 +8,7 @@ export type AppUser = {
 };
 
 function toAppUser(session: SessionUser): AppUser {
-  const name = session.email.split("@")[0] || "Kafe Yöneticisi";
+  const name = session.email.split("@")[0] || "İşletme Yöneticisi";
   return {
     id: session.id,
     email: session.email,

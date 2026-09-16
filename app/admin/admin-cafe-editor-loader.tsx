@@ -7,6 +7,7 @@ import { useAdminApi } from "@/lib/admin-api";
 import { supabase } from "@/lib/supabase-browser";
 import type { Cafe } from "@/lib/menu";
 import MenuEditor from "../editor/menu-editor";
+import ProductsManager from "../products-manager";
 
 export default function AdminCafeEditorLoader() {
   const params = useParams<{ id: string }>();
@@ -14,6 +15,8 @@ export default function AdminCafeEditorLoader() {
   const api = useAdminApi();
   const [cafe, setCafe] = useState<Cafe | null>(null);
   const [error, setError] = useState("");
+  const [tab, setTab] = useState<"design" | "products">("design");
+  const [toast, setToast] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -58,5 +61,62 @@ export default function AdminCafeEditorLoader() {
       </main>
     );
 
-  return <MenuEditor initialCafe={cafe} access="admin" />;
+  return (
+    <main className="admin-editor-workspace">
+      <div className="admin-editor-tabs" role="tablist">
+        <button
+          role="tab"
+          aria-selected={tab === "design"}
+          className={tab === "design" ? "active" : ""}
+          onClick={() => setTab("design")}
+        >
+          Tasarım
+        </button>
+        <button
+          role="tab"
+          aria-selected={tab === "products"}
+          className={tab === "products" ? "active" : ""}
+          onClick={() => setTab("products")}
+        >
+          Ürünler
+        </button>
+      </div>
+      {toast && (
+        <div
+          className="admin-editor-toast"
+          role="status"
+          onAnimationEnd={() => setToast("")}
+        >
+          {toast}
+        </div>
+      )}
+      {tab === "design" ? (
+        <MenuEditor
+          key={cafe.id}
+          initialCafe={cafe}
+          access="admin"
+          onSaved={(saved) => setCafe(saved)}
+        />
+      ) : (
+        <ProductsManager
+          key={`products-${cafe.id}`}
+          cafes={[cafe]}
+          setCafes={(updater) => {
+            setCafe((current) => {
+              if (!current) return current;
+              const next =
+                typeof updater === "function"
+                  ? updater([current])
+                  : updater;
+              return next[0] ?? current;
+            });
+          }}
+          onCreateCafe={() => setTab("design")}
+          onError={setError}
+          onToast={setToast}
+          access="admin"
+        />
+      )}
+    </main>
+  );
 }

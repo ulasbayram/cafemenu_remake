@@ -41,6 +41,9 @@ import {
   Package,
   ClipboardList,
   MapPin,
+  ShoppingBag,
+  CircleDollarSign,
+  Banknote,
 } from "lucide-react";
 import { Cafe, Item, cafeSlug, slugify, sampleItems } from "@/lib/menu";
 import { type Rates } from "./menu-view";
@@ -59,6 +62,13 @@ type Tab =
   | "stats"
   | "settings";
 type Stat = { cafe: string; day: string; hour: number; count: number };
+type OrderRow = {
+  id: string;
+  cafe: string;
+  total: number;
+  status: string;
+  createdAt: string;
+};
 type QrOptions = Parameters<typeof import("qrcode").toDataURL>[1];
 
 async function qrDataUrl(text: string, options: QrOptions) {
@@ -113,6 +123,7 @@ export default function Dashboard({
   const [tab, setTab] = useState<Tab>(initialTab),
     [cafes, setCafes] = useState<Cafe[]>([]),
     [stats, setStats] = useState<Stat[]>([]),
+    [orderStats, setOrderStats] = useState<OrderRow[]>([]),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
     [toast, setToast] = useState(""),
@@ -134,13 +145,6 @@ export default function Dashboard({
     [busy, setBusy] = useState(false),
     [qr, setQr] = useState<Cafe | null>(null),
     [qrImage, setQrImage] = useState<{ id: string; url: string } | null>(null),
-    [qrTables, setQrTables] = useState<{
-      id: string;
-      slug: string;
-      tableCount: number;
-      name: string;
-    } | null>(null),
-    [qrTableImages, setQrTableImages] = useState<string[]>([]),
     [rawText, setRawText] = useState(""),
     [importItems, setImportItems] = useState<Item[]>([]),
     [scanCafe, setScanCafe] = useState(""),
@@ -170,7 +174,7 @@ export default function Dashboard({
               (typeof meta.full_name === "string" && meta.full_name) ||
               (typeof meta.name === "string" && meta.name) ||
               u.email?.split("@")[0] ||
-              "Kafe Yöneticisi",
+              "İşletme Yöneticisi",
             email: u.email || "",
           };
         }
@@ -183,13 +187,15 @@ export default function Dashboard({
       }
       if (active) setUser(session);
       try {
-        const [c, s] = await Promise.all([
+        const [c, s, o] = await Promise.all([
           api<Cafe[]>("/api/cafes"),
           api<Stat[]>("/api/stats"),
+          api<OrderRow[]>("/api/order-stats").catch(() => []),
         ]);
         if (active) {
           setCafes(c);
           setStats(s);
+          setOrderStats(o);
         }
       } catch (e) {
         if (active) setError((e as Error).message);
@@ -236,35 +242,7 @@ export default function Dashboard({
       active = false;
     };
   }, [qr]);
-  useEffect(() => {
-    if (!qrTables) return;
-    let active = true;
-    Promise.resolve()
-      .then(async () => {
-        const { links } = await api<{
-          links: { table: number; path: string }[];
-        }>(`/api/cafes/${qrTables.id}/table-links`);
-        const urls: string[] = [];
-        for (const link of links) {
-          urls.push(
-            await qrDataUrl(`${window.location.origin}${link.path}`, {
-              width: 600,
-              margin: 3,
-              color: { dark: "#172f27", light: "#ffffff" },
-              errorCorrectionLevel: "H",
-            }),
-          );
-        }
-        if (active) setQrTableImages(urls);
-      })
-      .catch((cause) => {
-        console.error("Table QR generation failed", cause);
-        if (active) setError("QR kodları oluşturulamadı.");
-      });
-    return () => {
-      active = false;
-    };
-  }, [qrTables]);
+
 
   useEffect(() => {
     if (!mobile) return;
@@ -348,7 +326,7 @@ export default function Dashboard({
       setCafes((p) => [c, ...p]);
       setCreate(false);
       setTab("cafes");
-      setToast("Kafeniz ve QR kodunuz hazır. Menünüzü düzenleyebilirsiniz.");
+      setToast("İşletmeniz ve QR kodunuz hazır. Menünüzü düzenleyebilirsiniz.");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -369,7 +347,7 @@ export default function Dashboard({
       );
       setCafes((p) => p.map((c) => (c.id === updated.id ? updated : c)));
       setCafeDetails(null);
-      setToast("Kafe bilgileri kaydedildi.");
+      setToast("İşletme bilgileri kaydedildi.");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -388,7 +366,7 @@ export default function Dashboard({
   async function importMenu() {
     const c = cafes.find((c) => c.id === scanCafe);
     if (!c) {
-      setError("Aktarılacak kafeyi seçin.");
+      setError("Aktarılacak işletmeyi seçin.");
       return;
     }
     setBusy(true);
@@ -422,6 +400,14 @@ export default function Dashboard({
       .filter((s) => s.day === today)
       .reduce((a, s) => a + s.count, 0),
     total = filtered.reduce((a, s) => a + s.count, 0),
+    orderRows = orderStats.filter(
+      (o) =>
+        (selected === "all" || o.cafe === selected) &&
+        o.createdAt.slice(0, 10) >= since,
+    ),
+    orderToday = orderRows.filter((o) => o.createdAt.slice(0, 10) === today),
+    orderTodayRevenue = orderToday.reduce((a, o) => a + o.total, 0),
+    orderPeriodRevenue = orderRows.reduce((a, o) => a + o.total, 0),
     visibleCafes = cafes.filter(
       (c) =>
         (selected === "all" || c.id === selected) &&
@@ -429,7 +415,7 @@ export default function Dashboard({
     ),
     nav = [
       { id: "overview", label: "Genel bakış", icon: LayoutDashboard },
-      { id: "cafes", label: "Kafelerim", icon: Store },
+      { id: "cafes", label: "İşletmelerim", icon: Store },
       { id: "menus", label: "Menü yönetimi", icon: BookOpen },
       { id: "products", label: "Ürünler", icon: Package },
       { id: "orders", label: "Siparişler", icon: ClipboardList },
@@ -451,7 +437,7 @@ export default function Dashboard({
     );
   const heading: Record<Tab, string> = {
     overview: "Genel bakış",
-    cafes: "Kafelerim",
+    cafes: "İşletmelerim",
     menus: "Menü yönetimi",
     products: "Ürünler ve kategoriler",
     orders: "Siparişler",
@@ -493,8 +479,8 @@ export default function Dashboard({
             <Store size={18} />
           </span>
           <span>
-            <strong>Kafe yönetimi</strong>
-            <small>{cafes.length} kafe · Kişisel hesap</small>
+            <strong>İşletme yönetimi</strong>
+            <small>{cafes.length} işletme · Kişisel hesap</small>
           </span>
           <ChevronDown size={15} />
         </button>
@@ -602,7 +588,7 @@ export default function Dashboard({
             <div className="page-heading">
               <div>
                 {tab === "overview" && (
-                  <div className="eyebrow">KAFENİZİN DİJİTAL KÖŞESİ</div>
+                  <div className="eyebrow">İŞLETMENİZİN DİJİTAL KÖŞESİ</div>
                 )}
                 <h1>
                   {tab === "overview"
@@ -611,11 +597,11 @@ export default function Dashboard({
                 </h1>
                 <p>
                   {tab === "overview"
-                    ? "Menüleriniz, kafeleriniz ve küçük ama değerli içgörüler."
+                    ? "Menüleriniz, işletmeleriniz ve küçük ama değerli içgörüler."
                     : tab === "cafes"
-                      ? "Tüm kafeleriniz, tek bir yerde."
+                      ? "Tüm işletmeleriniz, tek bir yerde."
                       : tab === "menus"
-                        ? "Her kafenin ruhuna uygun bir menü tasarlayın."
+                        ? "Her işletmenin ruhuna uygun bir menü tasarlayın."
                         : tab === "products"
                           ? "Kategorileri ve ürünleri tek bir çalışma alanından yönetin."
                           : tab === "orders"
@@ -640,7 +626,7 @@ export default function Dashboard({
                   tab !== "products" &&
                   tab !== "orders" && (
                     <button className="btn primary" onClick={startCreate}>
-                      <Plus size={18} /> Yeni kafe ekle
+                      <Plus size={18} /> Yeni işletme ekle
                     </button>
                   )}
               </div>
@@ -649,11 +635,11 @@ export default function Dashboard({
               <>
                 <div className="filter-row">
                   <select
-                    aria-label="Kafe filtresi"
+                    aria-label="İşletme filtresi"
                     value={selected}
                     onChange={(e) => setSelected(e.target.value)}
                   >
-                    <option value="all">Tüm kafeler</option>
+                    <option value="all">Tüm işletmeler</option>
                     {cafes.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
@@ -695,7 +681,7 @@ export default function Dashboard({
                       color: "blue",
                     },
                     {
-                      label: "Yayındaki kafeler",
+                      label: "Yayındaki işletmeler",
                       value: cafes.filter(
                         (c) =>
                           c.published &&
@@ -730,6 +716,69 @@ export default function Dashboard({
                     </section>
                   ))}
                 </div>
+                {orderRows.length > 0 && (
+                  <div className="stats-grid stats-grid-orders">
+                    {[
+                      {
+                        label: "Bugünkü siparişler",
+                        value: orderToday.length,
+                        icon: ClipboardList,
+                        note: "Bugün alınan sipariş adedi",
+                        color: "green",
+                        format: (v: number) => v.toLocaleString("tr-TR"),
+                      },
+                      {
+                        label: "Bugünkü ciro",
+                        value: orderTodayRevenue,
+                        icon: CircleDollarSign,
+                        note: "Bugünkü sipariş toplamı",
+                        color: "blue",
+                        format: (v: number) =>
+                          v.toLocaleString("tr-TR", {
+                            style: "currency",
+                            currency: "TRY",
+                            maximumFractionDigits: 0,
+                          }),
+                      },
+                      {
+                        label: `Dönem siparişleri (${
+                          period === "1" ? "bugün" : `son ${period} gün`
+                        })`,
+                        value: orderRows.length,
+                        icon: ShoppingBag,
+                        note: "Seçili dönemdeki toplam sipariş",
+                        color: "orange",
+                        format: (v: number) => v.toLocaleString("tr-TR"),
+                      },
+                      {
+                        label: "Dönem cirosu",
+                        value: orderPeriodRevenue,
+                        icon: Banknote,
+                        note: "Seçili dönemdeki tahmini ciro",
+                        color: "purple",
+                        format: (v: number) =>
+                          v.toLocaleString("tr-TR", {
+                            style: "currency",
+                            currency: "TRY",
+                            maximumFractionDigits: 0,
+                          }),
+                      },
+                    ].map((s) => (
+                      <section className="stat-card" key={s.label}>
+                        <div>
+                          <span>{s.label}</span>
+                          <span className={`stat-icon ${s.color}`}>
+                            <s.icon size={18} />
+                          </span>
+                        </div>
+                        <strong>
+                          {loading ? "—" : s.format(s.value)}
+                        </strong>
+                        <small>{s.note}</small>
+                      </section>
+                    ))}
+                  </div>
+                )}
                 <div className="analytics-grid">
                   <section className="panel chart-panel">
                     <div className="panel-title">
@@ -835,21 +884,21 @@ export default function Dashboard({
               <section className="cafes-section">
                 <div className="section-title">
                   <h2>
-                    Kafelerim <span>{cafes.length}</span>
+                    İşletmelerim <span>{cafes.length}</span>
                   </h2>
                   {tab === "overview" ? (
                     <button
                       className="text-btn"
                       onClick={() => navigate("cafes")}
                     >
-                      Tüm kafeleri gör <ArrowRight size={16} />
+                      Tüm işletmeleri gör <ArrowRight size={16} />
                     </button>
                   ) : (
                     <div className="search-input">
                       <Search size={17} />
                       <input
-                        placeholder="Kafe ara…"
-                        aria-label="Kafe ara"
+                        placeholder="İşletme ara…"
+                        aria-label="İşletme ara"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                       />
@@ -858,7 +907,7 @@ export default function Dashboard({
                 </div>
                 {loading ? (
                   <div className="panel loading-state">
-                    <LoaderCircle className="spin" /> Kafeleriniz yükleniyor…
+                    <LoaderCircle className="spin" /> İşletmeleriniz yükleniyor…
                   </div>
                 ) : cafes.length === 0 ? (
                   <div className="onboarding-card">
@@ -870,16 +919,16 @@ export default function Dashboard({
                         tanışmaya hazır mısınız?
                       </h2>
                       <p>
-                        Kafenizi ekleyin, menünüzü kendinize göre tasarlayın.
+                        İşletmenizi ekleyin, menünüzü kendinize göre tasarlayın.
                         <br />
                         QR kodunuz gerisini halletsin.
                       </p>
                       <button className="btn primary" onClick={startCreate}>
-                        <Plus size={17} /> İlk kafemi oluştur
+                        <Plus size={17} /> İlk işletmemi oluştur
                       </button>
                       <span className="onboard-note">
                         <Check size={14} /> Ücretsiz QR kod <span>·</span>{" "}
-                        Sınırsız kafe
+                        Sınırsız işletme
                       </span>
                     </div>
                     <div className="mini-menu-wrap">
@@ -951,7 +1000,7 @@ export default function Dashboard({
                               className="btn"
                               onClick={() => setCafeDetails(structuredClone(c))}
                             >
-                              <Settings size={16} /> Kafe bilgileri
+                              <Settings size={16} /> İşletme bilgileri
                             </button>
                             <button
                               className="icon-btn qr-button"
@@ -968,7 +1017,7 @@ export default function Dashboard({
                       <span>
                         <Plus size={24} />
                       </span>
-                      <strong>Yeni bir kafe</strong>
+                      <strong>Yeni bir işletme</strong>
                       <small>Yeni bir hikâye başlatın.</small>
                     </button>
                   </div>
@@ -995,17 +1044,17 @@ export default function Dashboard({
                   <Palette size={19} />
                   <p>
                     Bu bölüm yalnızca menünün görsel tasarımı içindir. Ürün ve
-                    kategori içerikleri Ürünler bölümünden; kafe iletişim
-                    bilgileri ve QR kodları Kafelerim bölümünden yönetilir.
+                    kategori içerikleri Ürünler bölümünden; işletme iletişim
+                    bilgileri ve QR kodları İşletmelerim bölümünden yönetilir.
                   </p>
                 </div>
                 {cafes.length === 0 ? (
                   <div className="panel menu-list-empty">
                     <BookOpen size={32} />
-                    <h3>Önce bir kafe ekleyin.</h3>
-                    <p>Her kafe oluşturulduğunda menüsü otomatik hazırlanır.</p>
+                    <h3>Önce bir işletme ekleyin.</h3>
+                    <p>Her işletme oluşturulduğunda menüsü otomatik hazırlanır.</p>
                     <button className="btn primary" onClick={startCreate}>
-                      Kafe oluştur
+                      İşletme oluştur
                     </button>
                   </div>
                 ) : (
@@ -1114,12 +1163,12 @@ export default function Dashboard({
                     <span className="pill">{importItems.length} ürün</span>
                   </div>
                   <label>
-                    Aktarılacak kafe
+                    Aktarılacak işletme
                     <select
                       value={scanCafe}
                       onChange={(e) => setScanCafe(e.target.value)}
                     >
-                      <option value="">Kafe seçin</option>
+                      <option value="">İşletme seçin</option>
                       {cafes.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name}
@@ -1222,7 +1271,7 @@ export default function Dashboard({
                   <p>
                     {signedIn
                       ? `${userName} olarak giriş yaptınız.`
-                      : "Kafelerinizi kaydetmek için giriş yapın."}
+                      : "İşletmelerinizi kaydetmek için giriş yapın."}
                   </p>
                   <button className="btn" onClick={logout}>
                     Çıkış yap <LogIn size={16} />
@@ -1230,11 +1279,11 @@ export default function Dashboard({
                   <div className="divider" />
                   <h2>Menü bağlantılarınız</h2>
                   <p>
-                    Her kafenin sabit bir adresi ve buna bağlı QR kodu vardır.
+                    Her işletmenin sabit bir adresi ve buna bağlı QR kodu vardır.
                     Ürünleri güncellediğinizde QR kodu yeniden basmanız
                     gerekmez.
                   </p>
-                  <code>alanadiniz.com/kafe-adi</code>
+                  <code>alanadiniz.com/işletme-adi</code>
                   <p className="small-text muted">
                     Özel alan adı henüz bağlı değil. Oluşturulan QR kodlar
                     mevcut uygulama adresini kullanır.
@@ -1256,7 +1305,7 @@ export default function Dashboard({
                   </div>
                   <p>
                     Barındırma ve veritabanı maliyetleri kullanılan platformun
-                    planına ve trafiğe bağlıdır. Kafe sayısı uygulama tarafından
+                    planına ve trafiğe bağlıdır. İşletme sayısı uygulama tarafından
                     sınırlandırılmaz.
                   </p>
                   <div className="divider" />
@@ -1316,7 +1365,7 @@ export default function Dashboard({
       )}
       {create && (
         <Modal
-          title="Yeni kafenize merhaba."
+          title="Yeni işletmenize merhaba."
           close={() => {
             if (!busy) setCreate(false);
           }}
@@ -1328,10 +1377,10 @@ export default function Dashboard({
             }}
           >
             <p className="muted">
-              Her kafe için menü adresiniz ve QR kodunuz otomatik hazırlanır.
+              Her işletme için menü adresiniz ve QR kodunuz otomatik hazırlanır.
             </p>
             <label>
-              Kafe adı
+              İşletme adı
               <input
                 autoFocus
                 required
@@ -1389,14 +1438,14 @@ export default function Dashboard({
               ) : (
                 <Plus size={18} />
               )}{" "}
-              Kafeyi oluştur
+              İşletmeyi oluştur
             </button>
           </form>
         </Modal>
       )}
       {cafeDetails && (
         <Modal
-          title="Kafe bilgileri"
+          title="İşletme bilgileri"
           close={() => {
             if (!detailsBusy) setCafeDetails(null);
           }}
@@ -1408,7 +1457,7 @@ export default function Dashboard({
             }}
           >
             <label>
-              Kafe adı
+              İşletme adı
               <input
                 required
                 minLength={2}
@@ -1471,13 +1520,12 @@ export default function Dashboard({
                 }
               >
                 <option value="token">Masa QR kodu ile</option>
-                <option value="token+daily">QR + günlük kod</option>
                 <option value="open">Menüye giren herkes</option>
               </select>
               <small className="muted">
                 QR kodu: yalnızca masanızdaki kod okutulunca sipariş açılır.
-                Günlük kod: QR + masadaki panoda yazan bugünün kodu. Açık:
-                menüyü açan herkes masa numarasını seçip sipariş verebilir.
+                Açık: menüyü açan herkes masa numarasını seçip sipariş
+                verebilir.
               </small>
             </label>
             <label>
@@ -1504,7 +1552,7 @@ export default function Dashboard({
             </label>
             <div className="location-capture">
               <span className="small-text muted">
-                Kafe konumu:{" "}
+                İşletme konumu:{" "}
                 {typeof cafeDetails.lat === "number" &&
                 typeof cafeDetails.lng === "number"
                   ? "kaydedildi"
@@ -1644,84 +1692,13 @@ export default function Dashboard({
             <button
               className="btn full"
               disabled={!qrUrl}
-              onClick={() =>
-                setQrTables({
-                  id: qr.id,
-                  slug: qr.slug,
-                  tableCount: qr.tableCount || 0,
-                  name: qr.name,
-                })
-              }
+              onClick={() => {
+                setQr(null);
+                window.location.assign(`/print/qr-sheet/${qr.id}`);
+              }}
             >
               <Printer size={16} /> Masa QR kâğıtları yazdır
             </button>
-          </div>
-        </Modal>
-      )}
-      {qrTables && (
-        <Modal
-          title="Masa QR kâğıtları"
-          close={() => {
-            setQrTables(null);
-            setQrTableImages([]);
-          }}
-        >
-          <div className="qr-modal qr-sheets">
-            <h3>{qrTables.name}</h3>
-            {qrTables.tableCount < 1 ? (
-              <>
-                <p className="form-error">
-                  Bu kafede masa QR kodu yok. Kafe bilgilerinden masa sayısını
-                  ayarlayın.
-                </p>
-                <button
-                  className="btn full"
-                  onClick={() => {
-                    setQrTables(null);
-                    setQr(null);
-                    setCafeDetails(
-                      cafes.find((c) => c.id === qrTables.id) || null,
-                    );
-                  }}
-                >
-                  <Store size={16} /> Kafe bilgilerini aç
-                </button>
-              </>
-            ) : qrTableImages.length === qrTables.tableCount ? (
-              <>
-                <p className="muted small-text">
-                  Her QR kendi masasının numarasını taşır. Sayfayı yazdırıp
-                  kodları masalara yapıştırın.
-                </p>
-                <div className="qr-print-grid">
-                  {qrTableImages.map((url, i) => (
-                    <div className="qr-print-card" key={i}>
-                      <img src={url} alt={`Masa ${i + 1} QR kodu`} />
-                      <strong>Masa {i + 1}</strong>
-                      <span>
-                        {qrTables.name} · masa {i + 1}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <div className="heading-actions">
-                  <button
-                    className="btn primary full"
-                    onClick={() => window.print()}
-                  >
-                    <Printer size={17} /> Yazdır
-                  </button>
-                  <button
-                    className="btn full"
-                    onClick={() => setQrTables(null)}
-                  >
-                    Kapat
-                  </button>
-                </div>
-              </>
-            ) : (
-              <LoaderCircle className="spin" />
-            )}
           </div>
         </Modal>
       )}

@@ -31,9 +31,11 @@ import { useHistory } from "./use-history";
 export default function MenuEditor({
   initialCafe,
   access = "owner",
+  onSaved,
 }: {
   initialCafe: Cafe;
   access?: "owner" | "admin";
+  onSaved?: (cafe: Cafe) => void;
 }) {
   const router = useRouter();
   const adminApi = useAdminApi();
@@ -137,7 +139,7 @@ export default function MenuEditor({
     setLogoBusy(true);
     try {
       const blob = await (await fetch(cafe.logoUrl)).blob();
-      await uploadLogo(new File([blob], "kafe-logosu", { type: blob.type }));
+      await uploadLogo(new File([blob], "işletme-logosu", { type: blob.type }));
     } catch {
       setError("Logo analiz edilemedi. Görseli yeniden yükleyebilirsiniz.");
     } finally {
@@ -160,6 +162,7 @@ export default function MenuEditor({
         JSON.stringify(current) === JSON.stringify(submitted) ? data : current,
       );
       setSaved(data);
+      onSaved?.(data);
       setToast("Menünüz kaydedildi.");
     } catch (e) {
       setError((e as Error).message);
@@ -235,7 +238,7 @@ export default function MenuEditor({
           <LockKeyhole size={16} />
           <span>
             <strong>Yönetici destek modu</strong> — Kaydettiğiniz değişiklikler
-            kafenin canlı menüsüne uygulanır.
+            işletmenin canlı menüsüne uygulanır.
           </span>
         </div>
       )}
@@ -515,7 +518,7 @@ export default function MenuEditor({
                 )}
                 <div className="logo-controls">
                   <label>
-                    Kafe logosu
+                    İşletme logosu
                     {cafe.logoUrl && (
                       <button
                         className="btn btn-secondary"
@@ -529,7 +532,7 @@ export default function MenuEditor({
                       <img
                         className="logo-thumbnail"
                         src={cafe.logoUrl}
-                        alt="Yüklenen kafe logosu"
+                        alt="Yüklenen işletme logosu"
                       />
                     )}
                     <input

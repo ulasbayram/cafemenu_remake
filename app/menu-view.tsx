@@ -186,7 +186,7 @@ export default function MenuView({
       {socialLinks.length > 0 && (
         <nav
           className="menu-social-links"
-          aria-label="Kafenin sosyal hesapları ve web sitesi"
+          aria-label="İşletmenin sosyal hesapları ve web sitesi"
         >
           {socialLinks.map((link) => (
             <a
@@ -331,11 +331,11 @@ export default function MenuView({
       {reviewLink && (
         <section
           className="menu-review-invite"
-          aria-label="Kafeyi değerlendirin"
+          aria-label="İşletmeyi değerlendirin"
         >
           <Star size={22} aria-hidden="true" />
           <strong>Deneyiminizi bizimle paylaşın</strong>
-          <p>Google’da yorum bırakarak kafemizi değerlendirebilirsiniz.</p>
+          <p>Google’da yorum bırakarak işletmemizi değerlendirebilirsiniz.</p>
           <a
             href={reviewLink.href}
             target="_blank"

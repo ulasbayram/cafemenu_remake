@@ -41,7 +41,11 @@ export default function PrintQrSheet() {
           img.src = "/favicon.svg";
         });
         const cells: { qr: HTMLCanvasElement; table: number }[] = [];
-        for (const link of links) {
+        const allLinks =
+          links.length > 0
+            ? links
+            : [{ table: 0, path: `/menu/${cafe.slug}` }];
+        for (const link of allLinks) {
           const matrix = await qrcode.create(link.path, {
             errorCorrectionLevel: "H",
           });
@@ -120,11 +124,15 @@ export default function PrintQrSheet() {
             ctx.fillStyle = "#172f27";
             ctx.font = "700 110px sans-serif";
             ctx.textAlign = "center";
-            ctx.fillText(`Masa ${cell.table}`, x + CELL / 2, y + qrSize + 150);
+            ctx.fillText(
+              cell.table > 0 ? `Masa ${cell.table}` : cafe.name,
+              x + CELL / 2,
+              y + qrSize + 150,
+            );
             ctx.font = "400 78px sans-serif";
             ctx.fillStyle = "#4b5c55";
             ctx.fillText(
-              `${cafe.name} · masa ${cell.table}`,
+              cell.table > 0 ? `${cafe.name} · masa ${cell.table}` : "Menü",
               x + CELL / 2,
               y + qrSize + 250,
             );
@@ -162,7 +170,7 @@ export default function PrintQrSheet() {
         <div>
           <h1>Masa QR kâğıtları</h1>
           <p>
-            {meta?.name} · A4 · 300dpi · her kart: QR + masa numarası + kafe
+            {meta?.name} · A4 · 300dpi · her kart: QR + masa numarası + işletme
             adı + fincan logosu
           </p>
         </div>

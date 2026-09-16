@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-react";
 import { api } from "@/lib/client-api";
+import { useAdminApi } from "@/lib/admin-api";
 import { menuCategories, type Cafe, type Item } from "@/lib/menu";
 import { preparePhoto } from "@/lib/logo";
 import { uploadImage } from "@/lib/storage";
@@ -34,6 +35,7 @@ type Props = {
   onCreateCafe: () => void;
   onError: (message: string) => void;
   onToast: (message: string) => void;
+  access?: "owner" | "admin";
 };
 
 const emptyItem = (category: string): Item => ({
@@ -52,7 +54,13 @@ export default function ProductsManager({
   onCreateCafe,
   onError,
   onToast,
+  access = "owner",
 }: Props) {
+  const adminApi = useAdminApi();
+  const saveCafe = (id: string, body: Cafe, method: "PUT") =>
+    access === "admin"
+      ? adminApi<Cafe>(`/api/admin/cafes/${id}`, { body, method })
+      : api<Cafe>(`/api/cafes/${id}`, body, method);
   const [cafeId, setCafeId] = useState(cafes[0]?.id ?? "");
   const source = cafes.find((cafe) => cafe.id === cafeId) ?? cafes[0] ?? null;
   const [draft, setDraft] = useState<Cafe | null>(
@@ -184,7 +192,7 @@ export default function ProductsManager({
     setBusy(true);
     onError("");
     try {
-      const updated = await api<Cafe>(`/api/cafes/${draft.id}`, draft, "PUT");
+      const updated = await saveCafe(draft.id, draft, "PUT");
       setCafes((current) =>
         current.map((cafe) => (cafe.id === updated.id ? updated : cafe)),
       );
@@ -201,10 +209,10 @@ export default function ProductsManager({
     return (
       <section className="panel product-empty-state">
         <Package size={34} />
-        <h2>Ürün eklemek için önce bir kafe oluşturun.</h2>
-        <p>Kategoriler ve ürünler oluşturduğunuz kafeye bağlanır.</p>
+        <h2>Ürün eklemek için önce bir işletme oluşturun.</h2>
+        <p>Kategoriler ve ürünler oluşturduğunuz işletmeye bağlanır.</p>
         <button className="btn primary" onClick={onCreateCafe}>
-          <Plus size={17} /> Kafe oluştur
+          <Plus size={17} /> İşletme oluştur
         </button>
       </section>
     );
@@ -213,7 +221,7 @@ export default function ProductsManager({
     <section className="products-workspace">
       <div className="products-toolbar">
         <label>
-          Çalışılan kafe
+          Çalışılan işletme
           <select
             value={draft.id}
             onChange={(event) => chooseCafe(event.target.value)}

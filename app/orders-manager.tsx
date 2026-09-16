@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
   ChefHat,
@@ -34,22 +34,34 @@ const filters: { value: "active" | OrderStatus; label: string }[] = [
 
 export default function OrdersManager({ cafes, onError, onToast }: Props) {
   const [orders, setOrders] = useState<CafeOrder[]>([]);
-  const [cafe, setCafe] = useState("all");
+  const [cafe, setCafe] = useState(cafes[0]?.id ?? "");
   const [filter, setFilter] = useState<"active" | OrderStatus>("active");
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<CafeOrder | null>(null);
   const [dailyCode, setDailyCode] = useState("");
+  // Suppress the poll tick right after a local mutation so a stale snapshot
+  // can't visually revert the card the owner just advanced.
+  const suppressPollUntil = useRef(0);
 
   const load = useCallback(async () => {
+    if (Date.now() < suppressPollUntil.current) return;
     try {
-      const path = cafe === "all" ? "/api/orders" : `/api/orders?cafe=${cafe}`;
-      setOrders(await api<CafeOrder[]>(path));
+      setOrders(await api<CafeOrder[]>(`/api/orders?cafe=${cafe}`));
     } catch (error) {
       onError((error as Error).message);
     } finally {
       setLoading(false);
     }
   }, [cafe, onError]);
+
+  // Follow the first cafe when the list arrives after mount.
+  useEffect(() => {
+    if (!cafe && cafes.length) {
+      const t = window.setTimeout(() => setCafe(cafes[0].id), 0);
+      return () => window.clearTimeout(t);
+    }
+  }, [cafe, cafes]);
 
   // Show the daily code when the selected cafe uses token+daily mode.
   useEffect(() => {
@@ -58,7 +70,7 @@ export default function OrdersManager({ cafes, onError, onToast }: Props) {
     const reset = () => {
       if (!cancelled) setDailyCode("");
     };
-    if (cafe === "all" || !entry) {
+    if (!cafe || !entry) {
       const t = window.setTimeout(reset, 0);
       return () => window.clearTimeout(t);
     }
@@ -97,12 +109,16 @@ export default function OrdersManager({ cafes, onError, onToast }: Props) {
     const status: OrderStatus =
       order.status === "waiting" ? "delivered" : "completed";
     setUpdating(order.id);
+    setConfirming(null);
     try {
       const updated = await api<{
         id: string;
         status: OrderStatus;
         updatedAt: string;
       }>(`/api/orders/${order.id}`, { status }, "PUT");
+      // Suppress the next poll so a stale snapshot can't visually revert this.
+      // eslint-disable-next-line react-hooks/purity -- event handler, not render
+      suppressPollUntil.current = Date.now() + 18000;
       setOrders((current) =>
         current.map((entry) =>
           entry.id === order.id
@@ -126,9 +142,9 @@ export default function OrdersManager({ cafes, onError, onToast }: Props) {
     return (
       <section className="panel orders-empty">
         <ShoppingBag size={34} />
-        <h2>Henüz sipariş alınacak bir kafe yok.</h2>
+        <h2>Henüz sipariş alınacak bir işletme yok.</h2>
         <p>
-          Kafe ve masa QR kodları oluşturulduğunda siparişler burada görünür.
+          İşletme ve masa QR kodları oluşturulduğunda siparişler burada görünür.
         </p>
       </section>
     );
@@ -143,20 +159,21 @@ export default function OrdersManager({ cafes, onError, onToast }: Props) {
             <small>masadaki ekran/pano için</small>
           </div>
         )}
-        <label>
-          Kafe
-          <select
-            value={cafe}
-            onChange={(event) => setCafe(event.target.value)}
-          >
-            <option value="all">Tüm kafeler</option>
-            {cafes.map((entry) => (
-              <option key={entry.id} value={entry.id}>
-                {entry.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        {cafes.length > 1 && (
+          <label>
+            İşletme
+            <select
+              value={cafe}
+              onChange={(event) => setCafe(event.target.value)}
+            >
+              {cafes.map((entry) => (
+                <option key={entry.id} value={entry.id}>
+                  {entry.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <div className="order-filters">
           {filters.map((entry) => (
             <button
@@ -224,26 +241,33 @@ export default function OrdersManager({ cafes, onError, onToast }: Props) {
               </header>
               <div className="order-cafe-time">
                 <strong>{order.cafeName}</strong>
-                {order.distanceKm != null && (
-                  <span
-                    className={`order-distance ${
-                      order.distanceSource === "ip" &&
-                      order.distanceKm >= 30
-                        ? "order-distance-warn"
-                        : ""
-                    }`}
-                    title={
-                      order.distanceSource === "gps"
-                        ? "Cihaz konumu ile hesaplandı"
-                        : "IP tabanlı yaklaşık konum"
-                    }
-                  >
-                    ~{order.distanceKm} km
-                    {order.distanceSource === "ip" && order.distanceKm >= 30
-                      ? " ⚠"
-                      : ""}
-                  </span>
-                )}
+                {(() => {
+                  const km = order.distanceKm;
+                  if (km == null) return null;
+                  const isGps = order.distanceSource === "gps";
+                  // Only suspicious distances surface: precise GPS beyond 3km,
+                  // IP-based beyond 50km (with reliability note) and 100km+.
+                  if (isGps && km <= 3) return null;
+                  if (!isGps && km < 50) return null;
+                  const flagged =
+                    (isGps && km > 3) || (!isGps && km >= 100);
+                  return (
+                    <span
+                      className={`order-distance${
+                        flagged ? " order-distance-warn" : ""
+                      }`}
+                      title={
+                        isGps
+                          ? "Cihaz konumu ile hesaplandı. AVM gibi kapalı alanlarda tespit hatalı olabilir."
+                          : flagged
+                            ? "IP tabanlı yaklaşık konum. Bu mesafe bilgisi güvenilir değildir, hata olabilir."
+                            : "IP tabanlı yaklaşık konum — hata olabilir; AVM gibi kapalı alanlarda tespit hatalı olabilir."
+                      }
+                    >
+                      ~{km} km{flagged ? " ⚠" : ""}
+                    </span>
+                  );
+                })()}
                 <time dateTime={order.createdAt}>
                   {new Date(order.createdAt).toLocaleTimeString("tr-TR", {
                     hour: "2-digit",
@@ -282,7 +306,11 @@ export default function OrdersManager({ cafes, onError, onToast }: Props) {
                 <button
                   className="btn primary full"
                   disabled={updating === order.id}
-                  onClick={() => advance(order)}
+                  onClick={() =>
+                    order.status === "delivered"
+                      ? setConfirming(order)
+                      : advance(order)
+                  }
                 >
                   {updating === order.id ? (
                     <LoaderCircle className="spin" size={16} />
@@ -298,6 +326,58 @@ export default function OrdersManager({ cafes, onError, onToast }: Props) {
               )}
             </article>
           ))}
+        </div>
+      )}
+      {confirming && (
+        <div
+          className="modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Siparişi tamamla"
+          onClick={() => setConfirming(null)}
+        >
+          <div
+            className="modal-card"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2>Siparişi tamamla?</h2>
+            <p>
+              <strong>Masa {confirming.tableNo}</strong> ·{" "}
+              {confirming.items.reduce(
+                (sum, line) => sum + line.quantity,
+                0,
+              )}{" "}
+              ürün ·{" "}
+              {confirming.total.toLocaleString("tr-TR", {
+                style: "currency",
+                currency: "TRY",
+              })}
+            </p>
+            <p className="muted small-text">
+              Ödeme alındıysa onaylayın. Tamamlanan sipariş listeden kalkar.
+            </p>
+            <div className="heading-actions">
+              <button
+                className="btn"
+                onClick={() => setConfirming(null)}
+                disabled={updating === confirming.id}
+              >
+                Vazgeç
+              </button>
+              <button
+                className="btn primary"
+                disabled={updating === confirming.id}
+                onClick={() => advance(confirming)}
+              >
+                {updating === confirming.id ? (
+                  <LoaderCircle className="spin" size={16} />
+                ) : (
+                  <CircleDollarSign size={16} />
+                )}{" "}
+                Evet, tamamla
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </section>

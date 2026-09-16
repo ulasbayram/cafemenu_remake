@@ -33,9 +33,13 @@ export default function PublicMenu({
     [orderError, setOrderError] = useState(""),
     [sentOrder, setSentOrder] = useState<string | null>(null),
     [dailyCode, setDailyCode] = useState(""),
-    [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+    [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null),
+    [pickedTable, setPickedTable] = useState<number | null>(null);
   const { theme, toggleTheme } = useMenuTheme(cafe.defaultTheme);
-  const orderEnabled = !!(table && orderToken);
+  // Token modes: table comes from the scanned QR URL. Open mode: the guest
+  // picks it (session-only — never persisted).
+  const effectiveTable = orderMode === "open" ? pickedTable : table;
+  const orderEnabled = !!(effectiveTable && orderToken && (cafe.tableCount ?? 0) > 0);
   const needsDailyCode = orderMode === "token+daily";
   const cartLines = cafe.items
     .filter((item) => item.available && (cart[item.id] ?? 0) > 0)
@@ -81,7 +85,7 @@ export default function PublicMenu({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           cafe: cafe.id,
-          table,
+          table: effectiveTable,
           token: orderToken,
           visitor,
           ...(needsDailyCode && dailyCode.trim()
@@ -144,11 +148,11 @@ export default function PublicMenu({
         body: JSON.stringify({
           cafe: cafe.id,
           visitor,
-          ...(table ? { table } : {}),
+          ...(effectiveTable ? { table: effectiveTable } : {}),
         }),
       }).catch(() => {});
     } catch {}
-  }, [cafe.id, table]);
+  }, [cafe.id, effectiveTable]);
   return (
     <main
       className="public-shell"
@@ -197,10 +201,38 @@ export default function PublicMenu({
           </label>
         </div>
       </div>
-      {orderEnabled && (
+      {orderEnabled && orderMode !== "open" && (
         <div className="table-order-banner">
-          <span>Masa {table}</span>
+          <span>Masa {effectiveTable}</span>
           <strong>Masadan sipariş verebilirsiniz</strong>
+        </div>
+      )}
+      {orderMode === "open" && (cafe.tableCount ?? 0) > 0 && (
+        <div className="table-order-banner table-picker-banner">
+          <label>
+            Masa numaranız
+            <select
+              value={pickedTable ?? ""}
+              onChange={(e) =>
+                setPickedTable(e.target.value ? Number(e.target.value) : null)
+              }
+            >
+              <option value="">Masa seçin</option>
+              {Array.from(
+                { length: Math.min(cafe.tableCount ?? 0, 200) },
+                (_, i) => i + 1,
+              ).map((t) => (
+                <option key={t} value={t}>
+                  Masa {t}
+                </option>
+              ))}
+            </select>
+          </label>
+          <strong>
+            {pickedTable
+              ? `Masa ${pickedTable} için sipariş verebilirsiniz`
+              : "Masa numaranızı seçin ve sipariş verin"}
+          </strong>
         </div>
       )}
       <MenuView
@@ -250,7 +282,7 @@ export default function PublicMenu({
           >
             <header>
               <div>
-                <span>MASA {table}</span>
+                <span>MASA {effectiveTable}</span>
                 <h2>Siparişiniz</h2>
               </div>
               <button
@@ -264,7 +296,7 @@ export default function PublicMenu({
               <div className="order-success">
                 <CheckCircle2 size={42} />
                 <h3>Siparişiniz alındı.</h3>
-                <p>Kafe ekibi siparişinizi hazırlamaya başlayacak.</p>
+                <p>İşletme ekibi siparişinizi hazırlamaya başlayacak.</p>
                 <small>Sipariş no · {sentOrder}</small>
                 <button
                   className="btn primary full"
@@ -330,7 +362,7 @@ export default function PublicMenu({
                       onChange={(e) => setDailyCode(e.target.value)}
                     />
                     <small className="muted">
-                      Kafenin bugünkü sipariş kodu; masanızdaki ekran ya da
+                      İşletmenin bugünkü sipariş kodu; masanızdaki ekran ya da
                       panoda yazılıdır.
                     </small>
                   </label>
@@ -338,7 +370,9 @@ export default function PublicMenu({
                 {orderError && <p className="form-error">{orderError}</p>}
                 <button
                   className="btn primary full order-submit"
-                  disabled={sending || !cartLines.length}
+                  disabled={
+                    sending || !cartLines.length || !effectiveTable
+                  }
                   onClick={submitOrder}
                 >
                   {sending ? (
@@ -346,10 +380,10 @@ export default function PublicMenu({
                   ) : (
                     <ShoppingBag size={17} />
                   )}
-                  {sending ? "Gönderiliyor…" : `Masa ${table} için sipariş ver`}
+                  {sending ? "Gönderiliyor…" : `Masa ${effectiveTable} için sipariş ver`}
                 </button>
                 <p className="order-payment-note">
-                  Ödeme kafe tarafından ayrıca alınır.
+                  Ödeme işletme tarafından ayrıca alınır.
                 </p>
               </>
             )}
@@ -357,8 +391,8 @@ export default function PublicMenu({
         </div>
       )}
       <p className="rate-disclaimer privacy-note-public">
-        Cihazınızda anonim bir tanımlayıcı saklanır — ziyaret sayımı ve
-        siparişler için; kişisel veri ile eşleştirilmez.
+        Sipariş doğrulaması için tarayıcınızda anonim bir tanımlayıcı
+        saklanır. Kişisel veri ile eşleştirilmez.
       </p>
     </main>
   );
