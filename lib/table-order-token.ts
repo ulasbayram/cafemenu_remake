@@ -42,3 +42,24 @@ export async function verifyTableOrder(
     return false;
   return token === (await signTableOrder(cafeId, table));
 }
+/** Istanbul-day-bucketed daily order code: HMAC(secret, "daily:cafeId:date")
+ * → 4 chars, uppercase. Same secret as table tokens; different message. */
+export async function dailyCodeFor(cafeId: string): Promise<string> {
+  const day = new Date().toLocaleDateString("en-CA", {
+    timeZone: "Europe/Istanbul",
+  });
+  const mac = await crypto.subtle.sign(
+    "HMAC",
+    await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(secret()),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    ),
+    new TextEncoder().encode(`daily:${cafeId}:${day}`),
+  );
+  return base64Url(mac)
+    .slice(0, 4)
+    .toUpperCase();
+}

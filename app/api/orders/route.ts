@@ -1,14 +1,19 @@
 import { z } from "zod";
 import { svc } from "@/db";
 import { asUser, owner, userJwt, fail, sameOrigin } from "@/lib/server";
-import { verifyTableOrder } from "@/lib/table-order-token";
-import type { Item } from "@/lib/menu";
+import { verifyTableOrder, dailyCodeFor } from "@/lib/table-order-token";
+import { checkUmbrella } from "@/lib/rate-limit";
+import type { Item, OrderPolicy } from "@/lib/menu";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const orderInput = z.object({
   cafe: z.string().regex(UUID),
   table: z.number().int().min(1).max(200),
   token: z.string().min(1).max(100),
+  visitor: z.string().min(8).max(64),
+  dailyCode: z.string().trim().min(3).max(8).optional(),
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
   items: z
     .array(
       z.object({
@@ -33,6 +38,8 @@ function mapOrder(row: Record<string, unknown> & { cafes?: unknown }) {
     status: row.status,
     items: row.items,
     total: Number(row.total),
+    distanceKm: row.distance_km == null ? null : Number(row.distance_km),
+    distanceSource: row.distance_source ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -45,7 +52,7 @@ export async function GET(request: Request) {
     let query = asUser(userJwt(request))
       .from("orders")
       .select(
-        "id, cafe, table_no, status, items, total, created_at, updated_at, cafes(name)",
+        "id, cafe, table_no, status, items, total, distance_km, distance_source, created_at, updated_at, cafes(name)",
       )
       .order("created_at", { ascending: false })
       .limit(300);
@@ -69,11 +76,6 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     const input = parsed.data;
-    if (!(await verifyTableOrder(input.cafe, input.table, input.token)))
-      return Response.json(
-        { error: "Sipariş yalnızca masa QR kodundan verilebilir." },
-        { status: 403 },
-      );
     const client = svc();
     const { data, error } = await client
       .from("cafes")
@@ -87,6 +89,64 @@ export async function POST(request: Request) {
         { error: "Masa siparişe açık değil." },
         { status: 404 },
       );
+    const policy: OrderPolicy = {
+      enabled: true,
+      mode: "token",
+      ...(cafe.data as { orderPolicy?: Partial<OrderPolicy> })?.orderPolicy,
+    };
+    if (!policy.enabled)
+      return Response.json(
+        { error: "Sipariş şu anda kapalı." },
+        { status: 403 },
+      );
+
+    // Mode auth: token (default), token+daily, open.
+    if (policy.mode !== "open") {
+      const tokenOk = await verifyTableOrder(
+        input.cafe,
+        input.table,
+        input.token,
+      );
+      if (!tokenOk)
+        return Response.json(
+          { error: "Sipariş yalnızca masa QR kodundan verilebilir." },
+          { status: 403 },
+        );
+    }
+    if (policy.mode === "token+daily") {
+      const todayCode = await dailyCodeFor(input.cafe);
+      const provided = (input.dailyCode ?? "").trim().toUpperCase();
+      if (!provided || provided !== todayCode)
+        return Response.json(
+          { error: "Bugünün sipariş kodu hatalı." },
+          { status: 403 },
+        );
+    }
+
+    // Rate limits: umbrella (cafe-wide, durable) + per-table/visitor (CF).
+    const workerEnv = (globalThis as unknown as {
+      FINCAN_WORKER_ENV?: {
+        ORDER_PER_TABLE?: { accept(key: string): { success: boolean } };
+        ORDER_PER_VISITOR?: { accept(key: string): { success: boolean } };
+      };
+    }).FINCAN_WORKER_ENV;
+    const visitorId = input.visitor;
+    if (
+      !(await checkUmbrella(input.cafe, Number(cafe.table_count ?? 0))) ||
+      workerEnv?.ORDER_PER_TABLE?.accept(
+        `${input.cafe}:${input.table}:${visitorId}`,
+      )?.success === false ||
+      workerEnv?.ORDER_PER_VISITOR?.accept(visitorId)?.success === false
+    )
+      return Response.json(
+        { error: "Şu an çok yoğun. Lütfen birazdan tekrar deneyin." },
+        { status: 429 },
+      );
+
+    // Distance signal: server-computed from device coords (best) or the
+    // request's IP (request.cf, Workers only). Only the km number is stored —
+    // never coordinates.
+    const distance = distanceTo(cafe.data, input.lat, input.lng, request);
 
     const products = Array.isArray(cafe.data?.items)
       ? (cafe.data.items as Item[])
@@ -119,6 +179,7 @@ export async function POST(request: Request) {
         status: "waiting",
         items: lines,
         total,
+        ...(distance ? distance : {}),
       })
       .select("id, status, created_at")
       .single();
@@ -137,3 +198,56 @@ export async function POST(request: Request) {
 }
 
 export const dynamic = "force-dynamic";
+
+/** Haversine km between the cafe's saved coords and the given point. */
+function haversineKm(
+  cafeLat: number,
+  cafeLng: number,
+  lat: number,
+  lng: number,
+): number {
+  const R = 6371;
+  const dLat = ((lat - cafeLat) * Math.PI) / 180;
+  const dLng = ((lng - cafeLng) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((cafeLat * Math.PI) / 180) *
+      Math.cos((lat * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
+ * Resolves the distance signal. Precedence: device GPS (precise) → IP
+ * (request.cf, coarse). Returns only { distance_km, distance_source } or
+ * null — coordinates are never stored or returned.
+ */
+function distanceTo(
+  cafeData: Record<string, unknown> | null,
+  lat?: number,
+  lng?: number,
+  request?: Request,
+): { distance_km: number; distance_source: "gps" | "ip" } | null {
+  const cafeLat = (cafeData as { lat?: number })?.lat;
+  const cafeLng = (cafeData as { lng?: number })?.lng;
+  if (typeof cafeLat !== "number" || typeof cafeLng !== "number") return null;
+  if (typeof lat === "number" && typeof lng === "number") {
+    return {
+      distance_km: Math.round(haversineKm(cafeLat, cafeLng, lat, lng)),
+      distance_source: "gps",
+    };
+  }
+  const cf = (request as Request & { cf?: { latitude?: string; longitude?: string } })
+    ?.cf;
+  if (cf?.latitude && cf?.longitude) {
+    const d = haversineKm(
+      cafeLat,
+      cafeLng,
+      Number(cf.latitude),
+      Number(cf.longitude),
+    );
+    if (Number.isFinite(d))
+      return { distance_km: Math.round(d), distance_source: "ip" };
+  }
+  return null;
+}

@@ -5,10 +5,22 @@ import { socialLinksSchema } from "./social-links";
  * token+daily = QR plus a daily code shown in the dashboard; open = any
  * menu visitor may order for a valid table number. */
 export const orderPolicySchema = z.object({
-  enabled: z.boolean().default(true),
-  mode: z.enum(["token", "token+daily", "open"]).default("token"),
+  enabled: z.boolean().optional(),
+  mode: z.enum(["token", "token+daily", "open"]).optional(),
 });
-export type OrderPolicy = z.infer<typeof orderPolicySchema>;
+export type OrderPolicy = {
+  enabled?: boolean;
+  mode?: "token" | "token+daily" | "open";
+};
+/** Defaults applied at read time — schema fields stay optional. */
+export function resolveOrderPolicy(
+  policy?: Partial<OrderPolicy> | null,
+): Required<OrderPolicy> {
+  return {
+    enabled: policy?.enabled ?? true,
+    mode: policy?.mode ?? "token",
+  };
+}
 
 export const itemSchema = z.object({
   id: z.string().min(1).max(80),

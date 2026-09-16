@@ -40,6 +40,7 @@ import {
   Printer,
   Package,
   ClipboardList,
+  MapPin,
 } from "lucide-react";
 import { Cafe, Item, cafeSlug, slugify, sampleItems } from "@/lib/menu";
 import { type Rates } from "./menu-view";
@@ -218,11 +219,11 @@ export default function Dashboard({
   useEffect(() => {
     if (!qr) return;
     let active = true;
-    qrDataUrl(`${window.location.origin}/${qr.slug}`, {
+    qrDataUrl(`${window.location.origin}/menu/${qr.slug}`, {
       width: 800,
       margin: 4,
       color: { dark: "#172f27", light: "#ffffff" },
-      errorCorrectionLevel: "M",
+      errorCorrectionLevel: "H",
     })
       .then((url) => {
         if (active) setQrImage({ id: qr.id, url });
@@ -250,7 +251,7 @@ export default function Dashboard({
               width: 600,
               margin: 3,
               color: { dark: "#172f27", light: "#ffffff" },
-              errorCorrectionLevel: "M",
+              errorCorrectionLevel: "H",
             }),
           );
         }
@@ -1430,9 +1431,53 @@ export default function Dashboard({
             </label>
             <label>
               Menü adresi
-              <input readOnly value={`/${cafeDetails.slug}`} />
+              <input readOnly value={`/menu/${cafeDetails.slug}`} />
               <small className="muted">
                 QR kodunuzu korumak için bu adres sabittir.
+              </small>
+            </label>
+            <label className="setting-switch">
+              <input
+                type="checkbox"
+                checked={cafeDetails.orderPolicy?.enabled ?? true}
+                onChange={(e) =>
+                  setCafeDetails({
+                    ...cafeDetails,
+                    orderPolicy: {
+                      ...cafeDetails.orderPolicy,
+                      enabled: e.target.checked,
+                    },
+                  })
+                }
+              />
+              <span>Masa siparişi açık</span>
+            </label>
+            <label>
+              Sipariş yöntemi
+              <select
+                value={cafeDetails.orderPolicy?.mode ?? "token"}
+                onChange={(e) =>
+                  setCafeDetails({
+                    ...cafeDetails,
+                    orderPolicy: {
+                      ...cafeDetails.orderPolicy,
+                      enabled: cafeDetails.orderPolicy?.enabled ?? true,
+                      mode: e.target.value as
+                        | "token"
+                        | "token+daily"
+                        | "open",
+                    },
+                  })
+                }
+              >
+                <option value="token">Masa QR kodu ile</option>
+                <option value="token+daily">QR + günlük kod</option>
+                <option value="open">Menüye giren herkes</option>
+              </select>
+              <small className="muted">
+                QR kodu: yalnızca masanızdaki kod okutulunca sipariş açılır.
+                Günlük kod: QR + masadaki panoda yazan bugünün kodu. Açık:
+                menüyü açan herkes masa numarasını seçip sipariş verebilir.
               </small>
             </label>
             <label>
@@ -1457,6 +1502,38 @@ export default function Dashboard({
                 yazdırabilirsiniz (?table=1 … ?table=N).
               </small>
             </label>
+            <div className="location-capture">
+              <span className="small-text muted">
+                Kafe konumu:{" "}
+                {typeof cafeDetails.lat === "number" &&
+                typeof cafeDetails.lng === "number"
+                  ? "kaydedildi"
+                  : "kaydedilmedi"}
+              </span>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  navigator.geolocation?.getCurrentPosition(
+                    (pos) =>
+                      setCafeDetails({
+                        ...cafeDetails,
+                        lat: pos.coords.latitude,
+                        lng: pos.coords.longitude,
+                      }),
+                    () => setError("Konum alınamadı. İnterneti kontrol edin."),
+                    { timeout: 8000, maximumAge: 300000 },
+                  );
+                }}
+              >
+                <MapPin size={15} /> Bu konumdayım
+              </button>
+            </div>
+            <p className="small-text muted">
+              Konum, gelen siparişlerin yaklaşık uzaklığını göstermek için
+              kullanılır; konum verisi saklanmaz. AVM gibi kapalı alanlarda
+              tespit hatalı olabilir.
+            </p>
             <p className="small-text muted">
               Sosyal hesaplar, WhatsApp sipariş hattı, web sitesi ve Google
               yorum bağlantısı isteğe bağlıdır. Doldurulan bağlantılar müşteri
@@ -1550,7 +1627,7 @@ export default function Dashboard({
                 onClick={async () => {
                   try {
                     await navigator.clipboard.writeText(
-                      `${window.location.origin}/${qr.slug}`,
+                      `${window.location.origin}/menu/${qr.slug}`,
                     );
                     setToast("Menü bağlantısı kopyalandı.");
                   } catch {

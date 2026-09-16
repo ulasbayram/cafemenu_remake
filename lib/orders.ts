@@ -15,6 +15,8 @@ export type CafeOrder = {
   status: OrderStatus;
   items: OrderLine[];
   total: number;
+  distanceKm: number | null;
+  distanceSource: "gps" | "ip" | null;
   createdAt: string;
   updatedAt: string;
 };

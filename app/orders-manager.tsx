@@ -38,6 +38,7 @@ export default function OrdersManager({ cafes, onError, onToast }: Props) {
   const [filter, setFilter] = useState<"active" | OrderStatus>("active");
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [dailyCode, setDailyCode] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -49,6 +50,29 @@ export default function OrdersManager({ cafes, onError, onToast }: Props) {
       setLoading(false);
     }
   }, [cafe, onError]);
+
+  // Show the daily code when the selected cafe uses token+daily mode.
+  useEffect(() => {
+    let cancelled = false;
+    const entry = cafes.find((c) => c.id === cafe);
+    const reset = () => {
+      if (!cancelled) setDailyCode("");
+    };
+    if (cafe === "all" || !entry) {
+      const t = window.setTimeout(reset, 0);
+      return () => window.clearTimeout(t);
+    }
+    if (entry.orderPolicy?.enabled && entry.orderPolicy.mode === "token+daily")
+      api<{ code: string }>(`/api/orders/daily-code?cafe=${cafe}`)
+        .then((r) => {
+          if (!cancelled) setDailyCode(r.code);
+        })
+        .catch(reset);
+    else window.setTimeout(reset, 0);
+    return () => {
+      cancelled = true;
+    };
+  }, [cafe, cafes]);
 
   useEffect(() => {
     const initial = window.setTimeout(() => void load(), 0);
@@ -112,6 +136,13 @@ export default function OrdersManager({ cafes, onError, onToast }: Props) {
   return (
     <section className="orders-workspace">
       <div className="orders-toolbar panel">
+        {dailyCode && (
+          <div className="daily-code-card" title="Bugünün sipariş kodu">
+            <span>Günlük kod</span>
+            <strong>{dailyCode}</strong>
+            <small>masadaki ekran/pano için</small>
+          </div>
+        )}
         <label>
           Kafe
           <select
@@ -193,6 +224,26 @@ export default function OrdersManager({ cafes, onError, onToast }: Props) {
               </header>
               <div className="order-cafe-time">
                 <strong>{order.cafeName}</strong>
+                {order.distanceKm != null && (
+                  <span
+                    className={`order-distance ${
+                      order.distanceSource === "ip" &&
+                      order.distanceKm >= 30
+                        ? "order-distance-warn"
+                        : ""
+                    }`}
+                    title={
+                      order.distanceSource === "gps"
+                        ? "Cihaz konumu ile hesaplandı"
+                        : "IP tabanlı yaklaşık konum"
+                    }
+                  >
+                    ~{order.distanceKm} km
+                    {order.distanceSource === "ip" && order.distanceKm >= 30
+                      ? " ⚠"
+                      : ""}
+                  </span>
+                )}
                 <time dateTime={order.createdAt}>
                   {new Date(order.createdAt).toLocaleTimeString("tr-TR", {
                     hour: "2-digit",

@@ -17,10 +17,12 @@ export default function PublicMenu({
   cafe,
   table,
   orderToken,
+  orderMode,
 }: {
   cafe: Cafe;
   table?: number | null;
   orderToken?: string | null;
+  orderMode?: "token" | "token+daily" | "open" | null;
 }) {
   const [rates, setRates] = useState<Rates | null>(null),
     [currency, setCurrency] = useState("TRY"),
@@ -29,9 +31,12 @@ export default function PublicMenu({
     [cartOpen, setCartOpen] = useState(false),
     [sending, setSending] = useState(false),
     [orderError, setOrderError] = useState(""),
-    [sentOrder, setSentOrder] = useState<string | null>(null);
+    [sentOrder, setSentOrder] = useState<string | null>(null),
+    [dailyCode, setDailyCode] = useState(""),
+    [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const { theme, toggleTheme } = useMenuTheme(cafe.defaultTheme);
   const orderEnabled = !!(table && orderToken);
+  const needsDailyCode = orderMode === "token+daily";
   const cartLines = cafe.items
     .filter((item) => item.available && (cart[item.id] ?? 0) > 0)
     .map((item) => ({ item, quantity: cart[item.id] }));
@@ -59,6 +64,18 @@ export default function PublicMenu({
     setSending(true);
     setOrderError("");
     try {
+      const visitor = (() => {
+        try {
+          let id = localStorage.getItem("fincan-visitor");
+          if (!id) {
+            id = crypto.randomUUID();
+            localStorage.setItem("fincan-visitor", id);
+          }
+          return id;
+        } catch {
+          return crypto.randomUUID();
+        }
+      })();
       const response = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -66,6 +83,11 @@ export default function PublicMenu({
           cafe: cafe.id,
           table,
           token: orderToken,
+          visitor,
+          ...(needsDailyCode && dailyCode.trim()
+            ? { dailyCode: dailyCode.trim() }
+            : {}),
+          ...(coords ? { lat: coords.lat, lng: coords.lng } : {}),
           items: cartLines.map((line) => ({
             id: line.item.id,
             quantity: line.quantity,
@@ -85,6 +107,19 @@ export default function PublicMenu({
     } finally {
       setSending(false);
     }
+  }
+  /** Opt-in GPS at cart-open; denial is fine — IP distance covers the rest. */
+  function askLocation() {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) =>
+        setCoords({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        }),
+      () => setCoords(null),
+      { timeout: 8000, maximumAge: 300000 },
+    );
   }
   useEffect(() => {
     document.documentElement.dataset.menuTheme = theme;
@@ -185,7 +220,13 @@ export default function PublicMenu({
           : "Ödemeler TL olarak alınır."}
       </p>
       {orderEnabled && cartCount > 0 && (
-        <button className="cart-fab" onClick={() => setCartOpen(true)}>
+        <button
+          className="cart-fab"
+          onClick={() => {
+            setCartOpen(true);
+            if (!coords) askLocation();
+          }}
+        >
           <span>
             <ShoppingBag size={19} /> Sepeti görüntüle
           </span>
@@ -276,6 +317,24 @@ export default function PublicMenu({
                     })}
                   </strong>
                 </div>
+                {needsDailyCode && (
+                  <label className="daily-code-field">
+                    Günlük sipariş kodu
+                    <input
+                      inputMode="text"
+                      autoCapitalize="characters"
+                      maxLength={8}
+                      required
+                      placeholder="Masadaki ekranda yazan kod"
+                      value={dailyCode}
+                      onChange={(e) => setDailyCode(e.target.value)}
+                    />
+                    <small className="muted">
+                      Kafenin bugünkü sipariş kodu; masanızdaki ekran ya da
+                      panoda yazılıdır.
+                    </small>
+                  </label>
+                )}
                 {orderError && <p className="form-error">{orderError}</p>}
                 <button
                   className="btn primary full order-submit"
@@ -297,6 +356,10 @@ export default function PublicMenu({
           </section>
         </div>
       )}
+      <p className="rate-disclaimer privacy-note-public">
+        Cihazınızda anonim bir tanımlayıcı saklanır — ziyaret sayımı ve
+        siparişler için; kişisel veri ile eşleştirilmez.
+      </p>
     </main>
   );
 }

@@ -28,7 +28,7 @@ export async function GET(
         const token = await signTableOrder(id, table);
         return {
           table,
-          path: `/${cafe.slug}?table=${table}&order=${token}`,
+          path: `/menu/${cafe.slug}?table=${table}&order=${token}`,
         };
       }),
     );

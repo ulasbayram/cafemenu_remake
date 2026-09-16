@@ -24,14 +24,21 @@ export default async function Page({
   const c = (r.data ?? {}) as Record<string, unknown>;
   if (!r.published) notFound();
   const tableCount = Number(r.table_count ?? 0);
+  const policy = {
+    enabled: true,
+    mode: "token" as const,
+    ...((c.orderPolicy as { enabled?: boolean; mode?: "token" | "token+daily" | "open" }) ?? {}),
+  };
   const table =
     tableParam && /^[0-9]+$/.test(tableParam) && Number(tableParam) >= 1
       ? Math.min(Number(tableParam), Math.max(tableCount, 1))
       : null;
   const canOrder = !!(
     table &&
-    orderToken &&
-    (await verifyTableOrder(r.id, table, orderToken))
+    policy.enabled &&
+    (policy.mode === "open" ||
+      (orderToken &&
+        (await verifyTableOrder(r.id, table, orderToken))))
   );
   const defaultTheme =
     c.defaultTheme === "dark" || c.defaultTheme === "light"
@@ -63,7 +70,8 @@ export default async function Page({
           } as never
         }
         table={table}
-        orderToken={canOrder ? orderToken : null}
+        orderToken={canOrder ? (orderToken ?? "open") : null}
+        orderMode={canOrder ? policy.mode : null}
       />
     </>
   );
