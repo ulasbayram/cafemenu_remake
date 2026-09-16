@@ -69,13 +69,13 @@ type OrderRow = {
   status: string;
   createdAt: string;
 };
-type QrOptions = Parameters<typeof import("qrcode").toDataURL>[1];
-
-async function qrDataUrl(text: string, options: QrOptions) {
-  const qrModule = await import("qrcode");
-  const toDataURL = qrModule.toDataURL ?? qrModule.default?.toDataURL;
-  if (!toDataURL) throw new Error("QR encoder could not be loaded.");
-  return toDataURL(text, options);
+/** Single menu QR with the Fincan logo, via the shared composite renderer. */
+async function qrMenuPng(menuPath: string): Promise<string> {
+  const { loadFincanLogo, qrPngWithLogo } = await import(
+    "@/lib/qr-composite"
+  );
+  const logo = await loadFincanLogo();
+  return qrPngWithLogo(menuPath, logo);
 }
 function Modal({
   title,
@@ -225,12 +225,7 @@ export default function Dashboard({
   useEffect(() => {
     if (!qr) return;
     let active = true;
-    qrDataUrl(`${window.location.origin}/menu/${qr.slug}`, {
-      width: 800,
-      margin: 4,
-      color: { dark: "#172f27", light: "#ffffff" },
-      errorCorrectionLevel: "H",
-    })
+    qrMenuPng(`/menu/${qr.slug}`)
       .then((url) => {
         if (active) setQrImage({ id: qr.id, url });
       })
@@ -1655,7 +1650,7 @@ export default function Dashboard({
             ) : (
               <LoaderCircle className="spin" />
             )}
-            <p>/{qr.slug}</p>
+            <p>/menu/{qr.slug}</p>
             {!qr.published && (
               <p className="form-error">
                 Menünüz taslak. Misafirlerinizin görebilmesi için editörden

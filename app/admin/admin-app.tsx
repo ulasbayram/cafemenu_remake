@@ -80,7 +80,6 @@ export default function AdminApp() {
   const router = useRouter();
   const [auth, setAuth] = useState<"loading" | "denied" | "ready">("loading");
   const [adminEmail, setAdminEmail] = useState("");
-  const [accessError, setAccessError] = useState("");
   const [tab, setTab] = useState<Tab>("overview");
   const [overview, setOverview] = useState<Overview | null>(null);
   const [cafes, setCafes] = useState<AdminCafe[]>([]);
@@ -107,9 +106,8 @@ export default function AdminApp() {
         if (!active) return;
         setAdminEmail(admin.email || data.session.user.email || "Admin");
         setAuth("ready");
-      } catch (reason) {
+      } catch {
         if (!active) return;
-        setAccessError((reason as Error).message);
         setAuth("denied");
       }
     })();

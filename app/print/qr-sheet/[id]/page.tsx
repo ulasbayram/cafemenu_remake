@@ -3,7 +3,36 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Download, LoaderCircle } from "lucide-react";
 import { api } from "@/lib/client-api";
+import { loadFincanLogo, qrCanvasWithLogo } from "@/lib/qr-composite";
 import type { Cafe } from "@/lib/menu";
+
+/**
+ * Draws text centered at (cx, y), shrinking the font until it fits maxWidth
+ * (floor 44px), then ellipsis-truncating. Prevents cross-cell bleed.
+ */
+function fitText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  cx: number,
+  y: number,
+  maxWidth: number,
+  startSize: number,
+) {
+  let size = startSize;
+  ctx.fillStyle = "#4b5c55";
+  ctx.textAlign = "center";
+  let label = text;
+  while (size > 44) {
+    ctx.font = `400 ${size}px sans-serif`;
+    if (ctx.measureText(label).width <= maxWidth) break;
+    size -= 6;
+  }
+  ctx.font = `400 ${size}px sans-serif`;
+  while (label.length > 1 && ctx.measureText(label + "…").width > maxWidth)
+    label = label.slice(0, -1);
+  if (label !== text) label += "…";
+  ctx.fillText(label, cx, y);
+}
 
 /** A4 @300dpi canvas dimensions. */
 const PAGE_W = 2480;
@@ -32,68 +61,17 @@ export default function PrintQrSheet() {
         const { links } = await api<{
           links: { table: number; path: string }[];
         }>(`/api/cafes/${id}/table-links`);
-        const qrcode = await import("qrcode");
-        // Fincan logo bitmap (favicon) for the QR center.
-        const logo = await new Promise<HTMLImageElement | null>((resolve) => {
-          const img = new Image();
-          img.onload = () => resolve(img);
-          img.onerror = () => resolve(null);
-          img.src = "/favicon.svg";
-        });
+        const logo = await loadFincanLogo();
         const cells: { qr: HTMLCanvasElement; table: number }[] = [];
         const allLinks =
           links.length > 0
             ? links
             : [{ table: 0, path: `/menu/${cafe.slug}` }];
         for (const link of allLinks) {
-          const matrix = await qrcode.create(link.path, {
-            errorCorrectionLevel: "H",
-          });
-          const size = matrix.modules.size;
-          const quiet = 4;
-          const cellCanvas = document.createElement("canvas");
-          const scale = 8; // supersample: QR at 8px/module
-          cellCanvas.width = cellCanvas.height =
-            (size + quiet * 2) * scale;
-          const ctx = cellCanvas.getContext("2d");
-          if (!ctx) throw new Error("canvas");
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(0, 0, cellCanvas.width, cellCanvas.height);
-          ctx.fillStyle = "#172f27";
-          const moduleSize = scale;
-          for (let y = 0; y < size; y++)
-            for (let x = 0; x < size; x++)
-              if (matrix.modules.data[y * size + x])
-                ctx.fillRect(
-                  (quiet + x) * scale,
-                  (quiet + y) * scale,
-                  moduleSize,
-                  moduleSize,
-                );
-          // Centered Fincan logo, ≤24% of QR width, white surround.
-          if (logo) {
-            const logoW = Math.round(cellCanvas.width * 0.22);
-            const pad = Math.round(logoW * 0.08);
-            ctx.fillStyle = "#ffffff";
-            ctx.fillRect(
-              Math.round((cellCanvas.width - logoW) / 2 - pad),
-              Math.round((cellCanvas.width - logoW) / 2 - pad),
-              logoW + pad * 2,
-              logoW + pad * 2,
-            );
-            const r = 12;
-            const x0 = (cellCanvas.width - logoW) / 2;
-            const y0 = (cellCanvas.width - logoW) / 2;
-            ctx.beginPath();
-            ctx.moveTo(y0 + r, y0);
-            ctx.arcTo(x0 + logoW, y0, x0 + logoW, y0 + logoW, r);
-            ctx.arcTo(x0 + logoW, y0 + logoW, x0, y0 + logoW, r);
-            ctx.arcTo(x0, y0 + logoW, x0, y0, r);
-            ctx.arcTo(x0, y0, x0 + logoW, y0, r);
-            ctx.closePath();
-            ctx.fill();
-            if (logo) ctx.drawImage(logo, x0, y0, logoW, logoW);
-          }
+          // qrCanvasWithLogo prepends the origin — encoded text is always a
+          // full navigable URL. A non-URL here throws instead of printing
+          // dead paper.
+          const cellCanvas = await qrCanvasWithLogo(link.path, logo);
           cells.push({ qr: cellCanvas, table: link.table });
         }
         // Paginate 12 per page.
@@ -129,12 +107,15 @@ export default function PrintQrSheet() {
               x + CELL / 2,
               y + qrSize + 150,
             );
-            ctx.font = "400 78px sans-serif";
-            ctx.fillStyle = "#4b5c55";
-            ctx.fillText(
-              cell.table > 0 ? `${cafe.name} · masa ${cell.table}` : "Menü",
+            // Subtitle: cafe name only (table is already on the line above),
+            // shrunk to fit the cell so neighboring cards never overlap.
+            fitText(
+              ctx,
+              cafe.name,
               x + CELL / 2,
               y + qrSize + 250,
+              CELL - 40,
+              78,
             );
           });
           rendered.push(page.toDataURL("image/png"));
