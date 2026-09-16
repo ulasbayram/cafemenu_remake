@@ -2,7 +2,7 @@ import { z } from "zod";
 import { svc } from "@/db";
 import { asUser, owner, userJwt, fail, sameOrigin } from "@/lib/server";
 import { verifyTableOrder, dailyCodeFor } from "@/lib/table-order-token";
-import { checkUmbrella } from "@/lib/rate-limit";
+import { rateCheck } from "@/lib/rate-limit";
 import type { Item, OrderPolicy } from "@/lib/menu";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -123,21 +123,26 @@ export async function POST(request: Request) {
         );
     }
 
-    // Rate limits: umbrella (cafe-wide, durable) + per-table/visitor (CF).
+    // Rate limits: durable Postgres (umbrella cafe-wide + per-table-visitor)
+    // plus CF binding for the fast per-visitor scope.
     const workerEnv = (globalThis as unknown as {
       FINCAN_WORKER_ENV?: {
-        ORDER_PER_TABLE?: { accept(key: string): { success: boolean } };
-        ORDER_PER_VISITOR?: { accept(key: string): { success: boolean } };
+        ORDER_PER_VISITOR?: {
+          limit(options: { key: string }): Promise<{ success: boolean }>;
+        };
       };
     }).FINCAN_WORKER_ENV;
-    const visitorId = input.visitor;
-    if (
-      !(await checkUmbrella(input.cafe, Number(cafe.table_count ?? 0))) ||
-      workerEnv?.ORDER_PER_TABLE?.accept(
-        `${input.cafe}:${input.table}:${visitorId}`,
-      )?.success === false ||
-      workerEnv?.ORDER_PER_VISITOR?.accept(visitorId)?.success === false
-    )
+    const limitsOk = await rateCheck(
+      input.cafe,
+      input.table,
+      Number(cafe.table_count ?? 0),
+      input.visitor,
+    );
+    const visitorOk = workerEnv?.ORDER_PER_VISITOR
+      ? (await workerEnv.ORDER_PER_VISITOR.limit({ key: input.visitor }))
+          .success
+      : true;
+    if (!limitsOk || !visitorOk)
       return Response.json(
         { error: "Şu an çok yoğun. Lütfen birazdan tekrar deneyin." },
         { status: 429 },

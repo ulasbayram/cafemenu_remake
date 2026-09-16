@@ -8,14 +8,9 @@ if (!existsSync(path)) process.exit(0);
 const cfg = JSON.parse(readFileSync(path, "utf8"));
 cfg.ratelimits = [
   {
-    name: "ORDER_PER_TABLE",
-    namespace_id: "1001",
-    simple: { limit: 15, period: "thirty_minutes" },
-  },
-  {
     name: "ORDER_PER_VISITOR",
     namespace_id: "1002",
-    simple: { limit: 5, period: "minute" },
+    simple: { limit: 5, period: 60 },
   },
 ];
 writeFileSync(path, JSON.stringify(cfg));
