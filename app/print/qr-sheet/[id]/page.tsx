@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Download, LoaderCircle } from "lucide-react";
 import { api } from "@/lib/client-api";
+import { useAdminApi } from "@/lib/admin-api";
 import { loadFincanLogo, qrCanvasWithLogo } from "@/lib/qr-composite";
 import type { Cafe } from "@/lib/menu";
 
@@ -17,6 +18,7 @@ const CELL = Math.floor(Math.min(PAGE_W / COLS, (PAGE_H - 500) / ROWS));
 export default function PrintQrSheet() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const adminApi = useAdminApi();
   const [pages, setPages] = useState<string[]>([]);
   const [meta, setMeta] = useState<{ name: string; slug: string } | null>(null);
   const [error, setError] = useState("");
@@ -27,12 +29,23 @@ export default function PrintQrSheet() {
     let active = true;
     (async () => {
       try {
-        const cafe = await api<Cafe>(`/api/cafes/${id}`, undefined, "GET");
+        // Owners first; admins fall back to the admin endpoints, which serve
+        // any business's data with the same shape.
+        let cafe: Cafe;
+        let links: { table: number; path: string }[];
+        try {
+          cafe = await api<Cafe>(`/api/cafes/${id}`, undefined, "GET");
+          ({ links } = await api<{
+            links: { table: number; path: string }[];
+          }>(`/api/cafes/${id}/table-links`));
+        } catch {
+          cafe = await adminApi<Cafe>(`/api/admin/cafes/${id}`);
+          ({ links } = await adminApi<{
+            links: { table: number; path: string }[];
+          }>(`/api/admin/cafes/${id}/table-links`));
+        }
         if (!active) return;
         setMeta({ name: cafe.name, slug: cafe.slug });
-        const { links } = await api<{
-          links: { table: number; path: string }[];
-        }>(`/api/cafes/${id}/table-links`);
         const logo = await loadFincanLogo();
         const cells: { qr: HTMLCanvasElement; table: number }[] = [];
         const allLinks =
@@ -93,7 +106,7 @@ export default function PrintQrSheet() {
     return () => {
       active = false;
     };
-  }, [params?.id]);
+  }, [params?.id, adminApi]);
 
   if (error)
     return (

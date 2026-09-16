@@ -18,6 +18,7 @@ import {
   LoaderCircle,
   LogOut,
   MapPin,
+  Printer,
   Search,
   ShieldCheck,
   Store,
@@ -645,6 +646,13 @@ function CafeDrawer({
         <div className="admin-drawer-actions">
           <Link href={`/menu/${cafe.slug}`} target="_blank">
             Canlı menüyü aç <ExternalLink size={15} />
+          </Link>
+          <Link
+            href={`/print/qr-sheet/${cafe.id}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            QR kâğıtlarını aç <Printer size={15} />
           </Link>
           <button
             className="admin-primary-button"
