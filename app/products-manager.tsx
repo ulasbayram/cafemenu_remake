@@ -25,7 +25,9 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/client-api";
 import { useAdminApi } from "@/lib/admin-api";
-import { menuCategories, type Cafe, type Item } from "@/lib/menu";
+import { menuCategories, itemSchema, type Cafe, type Item } from "@/lib/menu";
+import ItemLabelEditor from "./item-label-editor";
+import ItemLabels from "./item-labels";
 import { preparePhoto } from "@/lib/logo";
 import { uploadImage } from "@/lib/storage";
 
@@ -402,6 +404,7 @@ export default function ProductsManager({
                       <strong>{item.name}</strong>
                       <small>{item.description || "Açıklama eklenmemiş"}</small>
                       <em>{item.category}</em>
+                      <ItemLabels item={item} />
                     </div>
                     <b>
                       {item.price.toLocaleString("tr-TR", {
@@ -468,7 +471,12 @@ export default function ProductsManager({
             onMouseDown={(event) => event.stopPropagation()}
             onSubmit={(event) => {
               event.preventDefault();
-              updateItem(editing);
+              const result = itemSchema.safeParse(editing);
+              if (!result.success) {
+                onError(result.error.issues[0].message);
+                return;
+              }
+              updateItem(result.data);
             }}
           >
             <header>
@@ -597,6 +605,7 @@ export default function ProductsManager({
                 </select>
               </label>
             </div>
+            <ItemLabelEditor item={editing} onChange={setEditing} />
             <label className="toggle-label">
               <span>
                 <strong>Menüde göster</strong>

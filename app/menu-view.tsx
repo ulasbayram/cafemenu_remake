@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { socialFields, normalizeSocialLink } from "@/lib/social-links";
 import { menuCategories, type Cafe, type Item } from "@/lib/menu";
+import ItemLabels from "./item-labels";
 import { logoSurfaceFromPixels } from "@/lib/logo";
 export type Rates = {
   USD: number;
@@ -286,6 +287,7 @@ export default function MenuView({
                         />
                       )}
                       <small>{item.description}</small>
+                      <ItemLabels item={item} />
                       {!item.available && <em>Menüde gizli</em>}
                     </span>
                     <b>

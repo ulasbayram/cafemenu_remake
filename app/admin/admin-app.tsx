@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase-browser";
 import { useAdminApi } from "@/lib/admin-api";
+import VisitChart from "../visit-chart";
+import type { VisitBucket } from "@/lib/visit-stats";
 
 type Tab = "overview" | "cafes" | "users";
 type Overview = {
@@ -41,6 +43,9 @@ type Overview = {
   users: number;
   newUsers7d: number;
   series: { day: string; count: number }[];
+  today: string;
+  visitBuckets: VisitBucket[];
+  visitCafes: { id: string; name: string }[];
   ratesFetchedAt: string | null;
 };
 type AdminCafe = {
@@ -278,10 +283,6 @@ function OverviewPanel({
   overview: Overview | null;
   onOpenCafes: () => void;
 }) {
-  const max = Math.max(
-    1,
-    ...(overview?.series.map((entry) => entry.count) ?? [1]),
-  );
   if (!overview)
     return (
       <div className="admin-skeleton-grid">
@@ -334,27 +335,18 @@ function OverviewPanel({
         ))}
       </section>
       <section className="admin-overview-grid">
-        <article className="admin-panel admin-chart-panel">
-          <header>
-            <div>
-              <span className="admin-eyebrow">TRAFİK</span>
-              <h2>Son 30 gün ziyaretleri</h2>
-            </div>
-            <strong>{overview.visits30d.toLocaleString("tr-TR")}</strong>
-          </header>
-          <div
-            className="admin-bars"
-            aria-label="Son 30 günlük ziyaret grafiği"
-          >
-            {overview.series.map((entry) => (
-              <i
-                key={entry.day}
-                title={`${formatDate(entry.day)}: ${entry.count}`}
-                style={{ height: `${Math.max(4, (entry.count / max) * 100)}%` }}
-              />
-            ))}
-          </div>
-        </article>
+        <div className="admin-visit-chart">
+          <VisitChart
+            visits={overview.visitBuckets}
+            days={30}
+            today={overview.today}
+            cafes={overview.visitCafes}
+            loading={false}
+            title="Son 30 gün ziyaretleri"
+            showTotal
+            allowCafeView
+          />
+        </div>
         <article className="admin-panel admin-quick-panel">
           <span className="admin-eyebrow">OPERASYON</span>
           <h2>Hızlı görünüm</h2>
@@ -527,9 +519,8 @@ function CafeQrPreview({ cafeId }: { cafeId: string }) {
           slug: string;
           links: { table: number; path: string }[];
         }>(`/api/admin/cafes/${cafeId}/table-links`);
-        const { loadFincanLogo, qrPngWithLogo } = await import(
-          "@/lib/qr-composite"
-        );
+        const { loadFincanLogo, qrPngWithLogo } =
+          await import("@/lib/qr-composite");
         const logo = await loadFincanLogo();
         const rendered: { label: string; src: string }[] = [
           {

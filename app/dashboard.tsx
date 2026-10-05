@@ -34,7 +34,6 @@ import {
   Search,
   LoaderCircle,
   LogIn,
-  Clock,
   Menu,
   Info,
   Printer,
@@ -52,6 +51,7 @@ import { socialFields } from "@/lib/social-links";
 import { api } from "@/lib/client-api";
 import ProductsManager from "./products-manager";
 import OrdersManager from "./orders-manager";
+import VisitChart from "./visit-chart";
 type Tab =
   | "overview"
   | "cafes"
@@ -71,9 +71,7 @@ type OrderRow = {
 };
 /** Single menu QR with the Fincan logo, via the shared composite renderer. */
 async function qrMenuPng(menuPath: string): Promise<string> {
-  const { loadFincanLogo, qrPngWithLogo } = await import(
-    "@/lib/qr-composite"
-  );
+  const { loadFincanLogo, qrPngWithLogo } = await import("@/lib/qr-composite");
   const logo = await loadFincanLogo();
   return qrPngWithLogo(menuPath, logo);
 }
@@ -237,7 +235,6 @@ export default function Dashboard({
       active = false;
     };
   }, [qr]);
-
 
   useEffect(() => {
     if (!mobile) return;
@@ -405,8 +402,11 @@ export default function Dashboard({
     orderPeriodRevenue = orderRows.reduce((a, o) => a + o.total, 0),
     visibleCafes = cafes.filter(
       (c) =>
-        (selected === "all" || c.id === selected) &&
-        c.name.toLocaleLowerCase("tr").includes(query.toLocaleLowerCase("tr")),
+        (tab === "overview" || selected === "all" || c.id === selected) &&
+        (tab === "overview" ||
+          c.name
+            .toLocaleLowerCase("tr")
+            .includes(query.toLocaleLowerCase("tr"))),
     ),
     nav = [
       { id: "overview", label: "Genel bakış", icon: LayoutDashboard },
@@ -417,19 +417,6 @@ export default function Dashboard({
       { id: "import", label: "Menü yapıştır", icon: ScanLine },
       { id: "stats", label: "İstatistikler", icon: ChartNoAxesCombined },
     ] as const;
-  const hours = Array.from({ length: 12 }, (_, i) => {
-      const hour = i * 2;
-      return {
-        hour,
-        count: filtered
-          .filter((s) => s.hour >= hour && s.hour < hour + 2)
-          .reduce((a, s) => a + s.count, 0),
-      };
-    }),
-    max = Math.max(
-      4,
-      Math.ceil(Math.max(0, ...hours.map((h) => h.count)) / 4) * 4,
-    );
   const heading: Record<Tab, string> = {
     overview: "Genel bakış",
     cafes: "İşletmelerim",
@@ -592,7 +579,7 @@ export default function Dashboard({
                 </h1>
                 <p>
                   {tab === "overview"
-                    ? "Menüleriniz, işletmeleriniz ve küçük ama değerli içgörüler."
+                    ? "Gününüzü yönetin. İhtiyacınız olan her şey bir adım uzakta."
                     : tab === "cafes"
                       ? "Tüm işletmeleriniz, tek bir yerde."
                       : tab === "menus"
@@ -609,7 +596,7 @@ export default function Dashboard({
                 </p>
               </div>
               <div className="heading-actions">
-                {(tab === "overview" || tab === "stats") && (
+                {tab === "stats" && (
                   <span className="date-chip">
                     <CalendarDays size={16} />
                     {dateLabel}
@@ -626,7 +613,96 @@ export default function Dashboard({
                   )}
               </div>
             </div>
-            {(tab === "overview" || tab === "stats") && (
+            {tab === "overview" && (
+              <section className="overview-home" aria-label="Hızlı erişim">
+                <div className="overview-status">
+                  <div>
+                    <span className="eyebrow">ÇALIŞMA ALANINIZ</span>
+                    <h2>Bugün nereden başlayalım?</h2>
+                    <p>
+                      Ürünlerinizi güncelleyin, menünüzü düzenleyin ya da
+                      siparişlerinize göz atın.
+                    </p>
+                  </div>
+                  <div className="overview-status-count">
+                    <strong>
+                      {loading ? "—" : cafes.filter((c) => c.published).length}
+                    </strong>
+                    <span>yayında işletme</span>
+                  </div>
+                </div>
+                <div className="overview-shortcuts">
+                  {[
+                    {
+                      tab: "menus" as Tab,
+                      icon: BookOpen,
+                      title: "Menünüzü düzenleyin",
+                      text: "Tasarımı değiştirin, QR kodunuzu paylaşın.",
+                      color: "green",
+                    },
+                    {
+                      tab: "products" as Tab,
+                      icon: Package,
+                      title: "Ürünleri yönetin",
+                      text: "Fiyatları, ürünleri ve kategorileri güncelleyin.",
+                      color: "purple",
+                    },
+                    {
+                      tab: "orders" as Tab,
+                      icon: ClipboardList,
+                      title: "Siparişleri takip edin",
+                      text: "Masalardan gelen siparişleri yönetin.",
+                      color: "orange",
+                    },
+                    {
+                      tab: "stats" as Tab,
+                      icon: ChartNoAxesCombined,
+                      title: "İstatistikleri keşfedin",
+                      text: "Ziyaretleri ve sipariş verilerini inceleyin.",
+                      color: "blue",
+                    },
+                  ].map((action) => (
+                    <button
+                      key={action.tab}
+                      className="overview-shortcut"
+                      onClick={() => navigate(action.tab)}
+                    >
+                      <span className={`stat-icon ${action.color}`}>
+                        <action.icon size={22} />
+                      </span>
+                      <strong>{action.title}</strong>
+                      <p>{action.text}</p>
+                      <span className="overview-shortcut-link">
+                        Ekrana git <ArrowRight size={17} />
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                {!loading && cafes.some((c) => !c.published) && (
+                  <div className="overview-reminder">
+                    <span className="stat-icon orange">
+                      <Info size={20} />
+                    </span>
+                    <div>
+                      <strong>
+                        {cafes.filter((c) => !c.published).length} işletmenin
+                        menüsü henüz yayında değil
+                      </strong>
+                      <p>
+                        Hazır olduğunuzda menü yönetiminden yayınlayabilirsiniz.
+                      </p>
+                    </div>
+                    <button
+                      className="text-btn"
+                      onClick={() => navigate("menus")}
+                    >
+                      Menülere git <ArrowRight size={16} />
+                    </button>
+                  </div>
+                )}
+              </section>
+            )}
+            {tab === "stats" && (
               <>
                 <div className="filter-row">
                   <select
@@ -646,6 +722,7 @@ export default function Dashboard({
                       <button
                         key={v}
                         className={period === v ? "active" : ""}
+                        aria-pressed={period === v}
                         onClick={() => setPeriod(v)}
                       >
                         {["Bugün", "Son 7 gün", "Son 30 gün"][i]}
@@ -732,7 +809,8 @@ export default function Dashboard({
                           v.toLocaleString("tr-TR", {
                             style: "currency",
                             currency: "TRY",
-                            maximumFractionDigits: 0,
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
                           }),
                       },
                       {
@@ -755,7 +833,8 @@ export default function Dashboard({
                           v.toLocaleString("tr-TR", {
                             style: "currency",
                             currency: "TRY",
-                            maximumFractionDigits: 0,
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
                           }),
                       },
                     ].map((s) => (
@@ -766,69 +845,22 @@ export default function Dashboard({
                             <s.icon size={18} />
                           </span>
                         </div>
-                        <strong>
-                          {loading ? "—" : s.format(s.value)}
-                        </strong>
+                        <strong>{loading ? "—" : s.format(s.value)}</strong>
                         <small>{s.note}</small>
                       </section>
                     ))}
                   </div>
                 )}
                 <div className="analytics-grid">
-                  <section className="panel chart-panel">
-                    <div className="panel-title">
-                      <div>
-                        <h2>Ziyaretçi trafiği</h2>
-                        <p>Günün en hareketli saatlerini keşfedin.</p>
-                      </div>
-                      <span className="chart-legend">
-                        <i /> Menü ziyaretleri
-                      </span>
-                    </div>
-                    <div className="chart">
-                      <div className="chart-axis">
-                        {[4, 3, 2, 1, 0].map((n) => (
-                          <span key={n}>{Math.ceil((max * n) / 4)}</span>
-                        ))}
-                      </div>
-                      <div className="chart-body">
-                        <div className="chart-grid">
-                          {[0, 1, 2, 3, 4].map((n) => (
-                            <i key={n} />
-                          ))}
-                        </div>
-                        <div className="chart-bars">
-                          {hours.map((h) => (
-                            <div key={h.hour} className="bar-slot">
-                              <div
-                                className="bar"
-                                style={{ height: `${(h.count / max) * 92}%` }}
-                                title={`${String(h.hour).padStart(2, "0")}:00 · ${h.count} ziyaret`}
-                              />
-                              <span>{String(h.hour).padStart(2, "0")}:00</span>
-                            </div>
-                          ))}
-                        </div>
-                        {total === 0 && (
-                          <div className="chart-empty">
-                            <span>
-                              <ChartNoAxesCombined size={23} />
-                            </span>
-                            <strong>İlk ziyaretinizle hareketlenecek.</strong>
-                            <small>
-                              QR menünüzü paylaşın, veriler burada biriksin.
-                            </small>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="chart-footer">
-                      <Clock size={14} />
-                      <span>
-                        Aynı tarayıcı, aynı gün içinde bir kez sayılır.
-                      </span>
-                    </div>
-                  </section>
+                  <VisitChart
+                    visits={filtered}
+                    days={Number(period)}
+                    today={today}
+                    cafes={cafes.filter(
+                      (c) => selected === "all" || c.id === selected,
+                    )}
+                    loading={loading}
+                  />
                   <section className="currency-card">
                     <div className="currency-header">
                       <span className="currency-icon">
@@ -1047,7 +1079,9 @@ export default function Dashboard({
                   <div className="panel menu-list-empty">
                     <BookOpen size={32} />
                     <h3>Önce bir işletme ekleyin.</h3>
-                    <p>Her işletme oluşturulduğunda menüsü otomatik hazırlanır.</p>
+                    <p>
+                      Her işletme oluşturulduğunda menüsü otomatik hazırlanır.
+                    </p>
                     <button className="btn primary" onClick={startCreate}>
                       İşletme oluştur
                     </button>
@@ -1274,8 +1308,8 @@ export default function Dashboard({
                   <div className="divider" />
                   <h2>Menü bağlantılarınız</h2>
                   <p>
-                    Her işletmenin sabit bir adresi ve buna bağlı QR kodu vardır.
-                    Ürünleri güncellediğinizde QR kodu yeniden basmanız
+                    Her işletmenin sabit bir adresi ve buna bağlı QR kodu
+                    vardır. Ürünleri güncellediğinizde QR kodu yeniden basmanız
                     gerekmez.
                   </p>
                   <code>alanadiniz.com/işletme-adi</code>
@@ -1300,8 +1334,8 @@ export default function Dashboard({
                   </div>
                   <p>
                     Barındırma ve veritabanı maliyetleri kullanılan platformun
-                    planına ve trafiğe bağlıdır. İşletme sayısı uygulama tarafından
-                    sınırlandırılmaz.
+                    planına ve trafiğe bağlıdır. İşletme sayısı uygulama
+                    tarafından sınırlandırılmaz.
                   </p>
                   <div className="divider" />
                   <h3>Ziyaretçi ölçümü</h3>
@@ -1506,10 +1540,7 @@ export default function Dashboard({
                     orderPolicy: {
                       ...cafeDetails.orderPolicy,
                       enabled: cafeDetails.orderPolicy?.enabled ?? true,
-                      mode: e.target.value as
-                        | "token"
-                        | "token+daily"
-                        | "open",
+                      mode: e.target.value as "token" | "token+daily" | "open",
                     },
                   })
                 }

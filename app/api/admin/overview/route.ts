@@ -1,6 +1,7 @@
 import { svc } from "@/db";
 import { verifyAdmin } from "@/lib/jwt";
 import { fail } from "@/lib/server";
+import { aggregateVisits, istanbulDay } from "@/lib/visit-stats";
 
 const DAY = 86_400_000;
 
@@ -15,7 +16,38 @@ export async function GET(request: Request) {
     const sb = svc();
     const now = Date.now();
     const since7 = new Date(now - 7 * DAY).toISOString();
-    const since30Day = new Date(now - 29 * DAY).toISOString().slice(0, 10);
+    const today = istanbulDay(new Date(now));
+    const since7Day = istanbulDay(new Date(now - 6 * DAY));
+    const since30Day = istanbulDay(new Date(now - 29 * DAY));
+    // PostgREST caps individual responses. Read every page before aggregating
+    // so chart totals and selected-day details include all recorded visits.
+    async function loadRecentVisits() {
+      const rows: { cafe: string; day: string; hour: number; name: string }[] =
+        [];
+      for (let offset = 0; ; offset += 1000) {
+        const { data, error } = await sb
+          .from("visits")
+          .select("cafe, day, hour, cafes(name)")
+          .gte("day", since30Day)
+          .lte("day", today)
+          .order("day")
+          .order("cafe")
+          .order("visitor")
+          .range(offset, offset + 999);
+        if (error) throw error;
+        for (const row of data ?? []) {
+          const cafe = row.cafes as unknown as { name: string } | null;
+          rows.push({
+            cafe: row.cafe,
+            day: row.day,
+            hour: row.hour,
+            name: cafe?.name ?? "İşletme",
+          });
+        }
+        if (!data || data.length < 1000) break;
+      }
+      return { data: rows, error: null };
+    }
     const [
       cafes,
       published,
@@ -40,12 +72,14 @@ export async function GET(request: Request) {
       sb
         .from("visits")
         .select("cafe", { count: "exact", head: true })
-        .gte("day", since7.slice(0, 10)),
+        .gte("day", since7Day)
+        .lte("day", today),
       sb
         .from("visits")
         .select("cafe", { count: "exact", head: true })
-        .gte("day", since30Day),
-      sb.from("visits").select("cafe, day").gte("day", since30Day).limit(10000),
+        .gte("day", since30Day)
+        .lte("day", today),
+      loadRecentVisits(),
       sb.from("rates").select("fetched_at").eq("key", "TRY").maybeSingle(),
       sb.auth.admin.listUsers({ page: 1, perPage: 1000 }),
     ]);
@@ -66,7 +100,7 @@ export async function GET(request: Request) {
     const byDay: Record<string, number> = {};
     const active = new Set<string>();
     for (let i = 0; i < 30; i++) {
-      const day = new Date(now - (29 - i) * DAY).toISOString().slice(0, 10);
+      const day = istanbulDay(new Date(now - (29 - i) * DAY));
       byDay[day] = 0;
     }
     for (const row of recentVisits.data ?? []) {
@@ -86,6 +120,16 @@ export async function GET(request: Request) {
       users: users.data.total ?? allUsers.length,
       newUsers7d: allUsers.filter((user) => user.created_at >= since7).length,
       series: Object.entries(byDay).map(([day, count]) => ({ day, count })),
+      today,
+      visitBuckets: aggregateVisits(recentVisits.data),
+      visitCafes: [
+        ...new Map(
+          recentVisits.data.map((row) => [
+            row.cafe,
+            { id: row.cafe, name: row.name },
+          ]),
+        ).values(),
+      ],
       ratesFetchedAt: rate.data?.fetched_at ?? null,
     });
   } catch (error) {

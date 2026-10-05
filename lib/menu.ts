@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { socialLinksSchema } from "./social-links";
+import { itemLabelFields } from "./item-labels";
 
 /** Per-cafe ordering policy. token = signed QR links only (default);
  * token+daily = QR plus a daily code shown in the dashboard; open = any
@@ -23,6 +24,7 @@ export function resolveOrderPolicy(
 }
 
 export const itemSchema = z.object({
+  ...itemLabelFields,
   id: z.string().min(1).max(80),
   name: z.string().trim().min(1).max(100),
   description: z.string().max(300),
