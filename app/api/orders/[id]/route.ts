@@ -49,8 +49,13 @@ export async function PUT(
       .eq("id", id)
       .eq("status", current.status)
       .select("status, updated_at")
-      .single();
+      .maybeSingle();
     if (error) throw error;
+    if (!data)
+      return Response.json(
+        { error: "Sipariş başka bir cihazda değiştirildi. Listeyi yenileyin." },
+        { status: 409 },
+      );
     return Response.json({
       id,
       status: data.status,

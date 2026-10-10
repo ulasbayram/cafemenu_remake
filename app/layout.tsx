@@ -4,12 +4,15 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Fincan · QR Menü & İşletme Yönetimi",
   description: "İşletmeniz için güzel menüler, kolay yönetim.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "Fincan", statusBarStyle: "default" },
   other: {
     "codex-preview": "development",
   },
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
+    apple: "/pwa-icon-192.png",
   },
 };
 

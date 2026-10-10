@@ -1,4 +1,5 @@
 "use client";
+import AppSelect from "@/components/app-select";
 import { useEffect, useState, type CSSProperties } from "react";
 import {
   Sun,
@@ -39,7 +40,11 @@ export default function PublicMenu({
   // Token modes: table comes from the scanned QR URL. Open mode: the guest
   // picks it (session-only — never persisted).
   const effectiveTable = orderMode === "open" ? pickedTable : table;
-  const orderEnabled = !!(effectiveTable && orderToken && (cafe.tableCount ?? 0) > 0);
+  const orderEnabled = !!(
+    effectiveTable &&
+    orderToken &&
+    (cafe.tableCount ?? 0) > 0
+  );
   const needsDailyCode = orderMode === "token+daily";
   const cartLines = cafe.items
     .filter((item) => item.available && (cart[item.id] ?? 0) > 0)
@@ -186,9 +191,10 @@ export default function PublicMenu({
           </button>
           <label>
             Currency{" "}
-            <select
+            <AppSelect
+              theme="customer"
               value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
+              onValueChange={(value) => setCurrency(value)}
             >
               <option value="TRY">₺ TRY</option>
               <option value="USD" disabled={!rates}>
@@ -197,7 +203,7 @@ export default function PublicMenu({
               <option value="EUR" disabled={!rates}>
                 € EUR
               </option>
-            </select>
+            </AppSelect>
           </label>
         </div>
       </div>
@@ -211,10 +217,11 @@ export default function PublicMenu({
         <div className="table-order-banner table-picker-banner">
           <label>
             Masa numaranız
-            <select
+            <AppSelect
+              theme="customer"
               value={pickedTable ?? ""}
-              onChange={(e) =>
-                setPickedTable(e.target.value ? Number(e.target.value) : null)
+              onValueChange={(value) =>
+                setPickedTable(value ? Number(value) : null)
               }
             >
               <option value="">Masa seçin</option>
@@ -226,7 +233,7 @@ export default function PublicMenu({
                   Masa {t}
                 </option>
               ))}
-            </select>
+            </AppSelect>
           </label>
           <strong>
             {pickedTable
@@ -370,9 +377,7 @@ export default function PublicMenu({
                 {orderError && <p className="form-error">{orderError}</p>}
                 <button
                   className="btn primary full order-submit"
-                  disabled={
-                    sending || !cartLines.length || !effectiveTable
-                  }
+                  disabled={sending || !cartLines.length || !effectiveTable}
                   onClick={submitOrder}
                 >
                   {sending ? (
@@ -380,7 +385,9 @@ export default function PublicMenu({
                   ) : (
                     <ShoppingBag size={17} />
                   )}
-                  {sending ? "Gönderiliyor…" : `Masa ${effectiveTable} için sipariş ver`}
+                  {sending
+                    ? "Gönderiliyor…"
+                    : `Masa ${effectiveTable} için sipariş ver`}
                 </button>
                 <p className="order-payment-note">
                   Ödeme işletme tarafından ayrıca alınır.
@@ -391,8 +398,8 @@ export default function PublicMenu({
         </div>
       )}
       <p className="rate-disclaimer privacy-note-public">
-        Sipariş doğrulaması için tarayıcınızda anonim bir tanımlayıcı
-        saklanır. Kişisel veri ile eşleştirilmez.
+        Sipariş doğrulaması için tarayıcınızda anonim bir tanımlayıcı saklanır.
+        Kişisel veri ile eşleştirilmez.
       </p>
     </main>
   );

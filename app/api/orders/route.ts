@@ -4,6 +4,7 @@ import { asUser, owner, userJwt, fail, sameOrigin } from "@/lib/server";
 import { verifyTableOrder, dailyCodeFor } from "@/lib/table-order-token";
 import { rateCheck } from "@/lib/rate-limit";
 import type { Item, OrderPolicy } from "@/lib/menu";
+import { notifyNewOrder } from "@/lib/order-push";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const orderInput = z.object({
@@ -79,7 +80,7 @@ export async function POST(request: Request) {
     const client = svc();
     const { data, error } = await client
       .from("cafes")
-      .select("id, published, table_count, data")
+      .select("id, name, owner, published, table_count, data")
       .eq("id", input.cafe)
       .limit(1);
     if (error) throw error;
@@ -125,13 +126,15 @@ export async function POST(request: Request) {
 
     // Rate limits: durable Postgres (umbrella cafe-wide + per-table-visitor)
     // plus CF binding for the fast per-visitor scope.
-    const workerEnv = (globalThis as unknown as {
-      FINCAN_WORKER_ENV?: {
-        ORDER_PER_VISITOR?: {
-          limit(options: { key: string }): Promise<{ success: boolean }>;
+    const workerEnv = (
+      globalThis as unknown as {
+        FINCAN_WORKER_ENV?: {
+          ORDER_PER_VISITOR?: {
+            limit(options: { key: string }): Promise<{ success: boolean }>;
+          };
         };
-      };
-    }).FINCAN_WORKER_ENV;
+      }
+    ).FINCAN_WORKER_ENV;
     const limitsOk = await rateCheck(
       input.cafe,
       input.table,
@@ -189,6 +192,14 @@ export async function POST(request: Request) {
       .select("id, status, created_at")
       .single();
     if (insertError) throw insertError;
+    await notifyNewOrder({
+      id: created.id,
+      cafeId: cafe.id,
+      cafeName: cafe.name,
+      ownerId: cafe.owner,
+      tableNo: input.table,
+      total,
+    });
     return Response.json(
       {
         id: created.id,
@@ -242,8 +253,9 @@ function distanceTo(
       distance_source: "gps",
     };
   }
-  const cf = (request as Request & { cf?: { latitude?: string; longitude?: string } })
-    ?.cf;
+  const cf = (
+    request as Request & { cf?: { latitude?: string; longitude?: string } }
+  )?.cf;
   if (cf?.latitude && cf?.longitude) {
     const d = haversineKm(
       cafeLat,

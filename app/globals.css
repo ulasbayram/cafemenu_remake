@@ -1,4 +1,52 @@
 @import "tailwindcss";
+.orders-live-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  margin: 14px 2px;
+}
+.orders-live-status > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #c29b51;
+}
+.orders-live-status > span.connected {
+  background: #66a67b;
+}
+.order-notification-controls {
+  padding: 16px;
+  margin-bottom: 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.order-notification-controls > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.order-notification-controls small {
+  display: block;
+  color: var(--muted);
+  margin-top: 10px;
+  font-size: 11px;
+  line-height: 1.7;
+}
+.order-notification-controls > p {
+  margin-top: 10px;
+  font-size: 12px;
+}
+.order-card > .btn + .btn {
+  margin-top: 8px;
+}
+@media (max-width: 600px) {
+  .order-notification-controls > div > button {
+    flex: 1;
+    font-size: 11px;
+  }
+}
 .auth-divider {
   display: flex;
   align-items: center;
@@ -15,7 +63,9 @@
   height: 1px;
   background: var(--line);
 }
-.auth-divider > span { flex-shrink: 0; }
+.auth-divider > span {
+  flex-shrink: 0;
+}
 .item-labels {
   display: flex;
   flex-wrap: wrap;
@@ -664,13 +714,13 @@ body {
 button,
 input,
 textarea,
-select {
+:is(select, [data-app-select]) {
   font: inherit;
 }
 button,
 a,
 input,
-select,
+:is(select, [data-app-select]),
 textarea {
   -webkit-tap-highlight-color: transparent;
 }
@@ -709,7 +759,7 @@ svg {
 }
 input:not([type="checkbox"]):not([type="color"]),
 textarea,
-select {
+:is(select, [data-app-select]) {
   background: #fff;
   border: 1px solid #dfe4df;
   border-radius: 8px;
@@ -720,7 +770,7 @@ select {
 }
 input:focus,
 textarea:focus,
-select:focus {
+:is(select, [data-app-select]):focus {
   border-color: #80a892 !important;
   box-shadow: 0 0 0 3px #245b4610;
 }
@@ -747,7 +797,7 @@ button {
   border: 0;
   background: none;
 }
-select {
+:is(select, [data-app-select]) {
   font-size: 14px;
 }
 .app-shell {
@@ -1093,7 +1143,7 @@ select {
   gap: 14px;
   margin-bottom: 20px;
 }
-.filter-row select {
+.filter-row :is(select, [data-app-select]) {
   min-width: 154px;
   font-size: 12px;
   padding: 8px 12px;
@@ -2448,7 +2498,7 @@ dialog::backdrop {
   gap: 10px;
   font-size: 12px;
 }
-.currency-bar select {
+.currency-bar :is(select, [data-app-select]) {
   font-size: 12px;
   padding: 5px 8px;
 }
@@ -2773,7 +2823,7 @@ dialog::backdrop {
     gap: 9px;
     justify-content: space-between;
   }
-  .filter-row select {
+  .filter-row :is(select, [data-app-select]) {
     min-width: 120px;
     font-size: 11px;
   }
@@ -3034,7 +3084,7 @@ dialog::backdrop {
 .stat-card > div > span:first-child,
 .workspace-switch strong,
 .profile strong,
-.filter-row select {
+.filter-row :is(select, [data-app-select]) {
   font-size: 14px;
 }
 .stat-card > small,
@@ -3129,7 +3179,7 @@ dialog::backdrop {
     font-size: 11px;
     padding: 6px 8px;
   }
-  .filter-row select {
+  .filter-row :is(select, [data-app-select]) {
     font-size: 12px;
   }
   .chart-footer {
@@ -3493,7 +3543,7 @@ dialog::backdrop {
 }
 .inspector-content input,
 .inspector-content textarea,
-.inspector-content select {
+.inspector-content :is(select, [data-app-select]) {
   font-size: 13px;
 }
 .inspector-content h3 {
@@ -4008,7 +4058,11 @@ html[data-theme="dark"] body {
   opacity: 0.4;
 }
 [data-theme="dark"]
-  :is(input:not([type="checkbox"]):not([type="color"]), textarea, select) {
+  :is(
+    input:not([type="checkbox"]):not([type="color"]),
+    textarea,
+    :is(select, [data-app-select])
+  ) {
   background: #141d17;
   border-color: #344438;
   color: #e1eae0;
@@ -4299,7 +4353,7 @@ html[data-theme="dark"] body {
   --muted: #7b817d;
   color-scheme: light;
 }
-[data-theme="dark"] .public-shell select {
+[data-theme="dark"] .public-shell :is(select, [data-app-select]) {
   background: #fff;
   color: #202b26;
   border-color: #dfe4df;
@@ -4499,7 +4553,7 @@ html[data-theme="dark"] body {
   }
   .inspector-content input,
   .inspector-content textarea,
-  .inspector-content select {
+  .inspector-content :is(select, [data-app-select]) {
     font-size: 16px;
   }
   .inspector-content .style-options {
@@ -4802,7 +4856,7 @@ body:has(.public-shell) {
 .public-shell .currency-bar label {
   color: var(--public-muted);
 }
-.public-shell .currency-bar select {
+.public-shell .currency-bar :is(select, [data-app-select]) {
   background: var(--public-surface);
   color: var(--public-text);
   border-color: var(--public-border);
@@ -4912,7 +4966,7 @@ html[data-menu-theme="dark"] body:has(.public-shell) {
   color: #bdbdbd !important;
   border-color: #383838;
 }
-.public-shell :is(button, select):focus-visible {
+.public-shell :is(button, :is(select, [data-app-select])):focus-visible {
   outline: 2px solid currentColor;
   outline-offset: 3px;
 }
@@ -7148,7 +7202,7 @@ html[data-menu-theme="dark"] body:has(.public-shell) {
   gap: 6px;
   font-weight: 600;
 }
-.table-picker-banner select {
+.table-picker-banner :is(select, [data-app-select]) {
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid var(--public-border, #ddd);

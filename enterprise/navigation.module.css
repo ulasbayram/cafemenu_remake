@@ -1,0 +1,32 @@
+.links {
+  padding-top: 18px;
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.links > span {
+  display: block;
+  padding: 0 12px 9px;
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+.links a {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px;
+  border-radius: 9px;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--green) 7%, var(--bg));
+}
+.links a span {
+  flex: 1;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.links a > svg {
+  color: var(--green);
+}
+.links a:hover {
+  background: color-mix(in srgb, var(--green) 13%, var(--bg));
+}

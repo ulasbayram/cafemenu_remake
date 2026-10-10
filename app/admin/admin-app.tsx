@@ -25,13 +25,15 @@ import {
   Users,
   UtensilsCrossed,
   X,
+  Crown,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase-browser";
 import { useAdminApi } from "@/lib/admin-api";
 import VisitChart from "../visit-chart";
+import AdminAccessManager from "./access-manager";
 import type { VisitBucket } from "@/lib/visit-stats";
 
-type Tab = "overview" | "cafes" | "users";
+type Tab = "overview" | "cafes" | "users" | "access";
 type Overview = {
   cafes: number;
   publishedCafes: number;
@@ -197,6 +199,13 @@ export default function AdminApp() {
           >
             <Users size={18} /> Kullanıcılar
           </button>
+          <button
+            className={tab === "access" ? "active" : ""}
+            onClick={() => setTab("access")}
+          >
+            <Crown size={18} />
+            Enterprise atamaları
+          </button>
         </nav>
         <div className="admin-sidebar-foot">
           <span>{adminEmail}</span>
@@ -219,14 +228,18 @@ export default function AdminApp() {
                 ? "PLATFORM SAĞLIĞI"
                 : tab === "cafes"
                   ? "CANLI DESTEK"
-                  : "HESAP YÖNETİMİ"}
+                  : tab === "access"
+                    ? "ERİŞİM YÖNETİMİ"
+                    : "HESAP YÖNETİMİ"}
             </span>
             <h1>
               {tab === "overview"
                 ? "Genel bakış"
                 : tab === "cafes"
                   ? "İşletme hesapları"
-                  : "Kullanıcılar"}
+                  : tab === "access"
+                    ? "Enterprise atamaları"
+                    : "Kullanıcılar"}
             </h1>
           </div>
           <div className="admin-topbar-actions">
@@ -267,6 +280,7 @@ export default function AdminApp() {
           />
         )}
         {tab === "users" && <UsersPanel users={users} />}
+        {tab === "access" && <AdminAccessManager />}
       </section>
 
       {selectedCafe && (
@@ -627,6 +641,7 @@ function CafeDrawer({
             </div>
           ))}
         </dl>
+        <AdminAccessManager cafe={cafe} />
         <div className="admin-qr-section">
           <h3>QR kodlar</h3>
           <p className="muted small-text">

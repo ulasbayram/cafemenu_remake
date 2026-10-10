@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase-browser";
 export async function api<T>(
   path: string,
   body?: unknown,
-  method?: "GET" | "POST" | "PUT",
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
 ): Promise<T> {
   const { data } = await supabase().auth.getSession();
   const token = data.session?.access_token;

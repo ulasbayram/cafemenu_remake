@@ -1,6 +1,7 @@
 "use client";
+import AppSelect from "@/components/app-select";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
   ChefHat,
@@ -18,6 +19,8 @@ import {
   type CafeOrder,
   type OrderStatus,
 } from "@/lib/orders";
+import { useOrderFeed } from "@/hooks/use-order-feed";
+import OrderNotificationControls from "./order-notification-controls";
 
 type Props = {
   cafes: Cafe[];
@@ -33,32 +36,24 @@ const filters: { value: "active" | OrderStatus; label: string }[] = [
 ];
 
 export default function OrdersManager({ cafes, onError, onToast }: Props) {
-  const [orders, setOrders] = useState<CafeOrder[]>([]);
   const [cafe, setCafe] = useState(cafes[0]?.id ?? "");
   const [filter, setFilter] = useState<"active" | OrderStatus>("active");
-  const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<CafeOrder | null>(null);
   const [dailyCode, setDailyCode] = useState("");
-  // Suppress the poll tick right after a local mutation so a stale snapshot
-  // can't visually revert the card the owner just advanced.
-  const suppressPollUntil = useRef(0);
-
-  const load = useCallback(async () => {
-    if (Date.now() < suppressPollUntil.current) return;
-    try {
-      setOrders(await api<CafeOrder[]>(`/api/orders?cafe=${cafe}`));
-    } catch (error) {
-      onError((error as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [cafe, onError]);
-
+  const { orders, setOrders, loading, refresh, live, sound, toggleSound } =
+    useOrderFeed(cafe, onError, onToast);
   // Follow the first cafe when the list arrives after mount.
   useEffect(() => {
     if (!cafe && cafes.length) {
-      const t = window.setTimeout(() => setCafe(cafes[0].id), 0);
+      const requested = new URLSearchParams(window.location.search).get("cafe");
+      const t = window.setTimeout(
+        () =>
+          setCafe(
+            cafes.find((entry) => entry.id === requested)?.id ?? cafes[0].id,
+          ),
+        0,
+      );
       return () => window.clearTimeout(t);
     }
   }, [cafe, cafes]);
@@ -86,15 +81,6 @@ export default function OrdersManager({ cafes, onError, onToast }: Props) {
     };
   }, [cafe, cafes]);
 
-  useEffect(() => {
-    const initial = window.setTimeout(() => void load(), 0);
-    const timer = window.setInterval(() => void load(), 15000);
-    return () => {
-      window.clearTimeout(initial);
-      window.clearInterval(timer);
-    };
-  }, [load]);
-
   const visible = useMemo(
     () =>
       orders.filter((order) =>
@@ -116,9 +102,6 @@ export default function OrdersManager({ cafes, onError, onToast }: Props) {
         status: OrderStatus;
         updatedAt: string;
       }>(`/api/orders/${order.id}`, { status }, "PUT");
-      // Suppress the next poll so a stale snapshot can't visually revert this.
-      // eslint-disable-next-line react-hooks/purity -- event handler, not render
-      suppressPollUntil.current = Date.now() + 18000;
       setOrders((current) =>
         current.map((entry) =>
           entry.id === order.id
@@ -131,6 +114,7 @@ export default function OrdersManager({ cafes, onError, onToast }: Props) {
           ? `Masa ${order.tableNo} siparişi teslim edildi.`
           : `Masa ${order.tableNo} siparişi tamamlandı.`,
       );
+      void refresh();
     } catch (error) {
       onError((error as Error).message);
     } finally {
@@ -162,16 +146,17 @@ export default function OrdersManager({ cafes, onError, onToast }: Props) {
         {cafes.length > 1 && (
           <label>
             İşletme
-            <select
+            <AppSelect
+              theme="standard"
               value={cafe}
-              onChange={(event) => setCafe(event.target.value)}
+              onValueChange={(value) => setCafe(value)}
             >
               {cafes.map((entry) => (
                 <option key={entry.id} value={entry.id}>
                   {entry.name}
                 </option>
               ))}
-            </select>
+            </AppSelect>
           </label>
         )}
         <div className="order-filters">
@@ -197,14 +182,18 @@ export default function OrdersManager({ cafes, onError, onToast }: Props) {
         <button
           className="btn"
           disabled={loading}
-          onClick={() => {
-            setLoading(true);
-            void load();
-          }}
+          onClick={() => void refresh()}
         >
           <RefreshCw className={loading ? "spin" : ""} size={16} /> Yenile
         </button>
       </div>
+      <div className="orders-live-status" role="status">
+        <span className={live ? "connected" : ""} />
+        {live
+          ? "Canlı bağlantı · Siparişler anlık güncelleniyor"
+          : "Otomatik kontrol · Açık ekranda her saniye"}
+      </div>
+      <OrderNotificationControls sound={sound} toggleSound={toggleSound} />
 
       {loading ? (
         <div className="panel orders-empty">
@@ -249,8 +238,7 @@ export default function OrdersManager({ cafes, onError, onToast }: Props) {
                   // IP-based beyond 50km (with reliability note) and 100km+.
                   if (isGps && km <= 3) return null;
                   if (!isGps && km < 50) return null;
-                  const flagged =
-                    (isGps && km > 3) || (!isGps && km >= 100);
+                  const flagged = (isGps && km > 3) || (!isGps && km >= 100);
                   return (
                     <span
                       className={`order-distance${
@@ -302,6 +290,7 @@ export default function OrdersManager({ cafes, onError, onToast }: Props) {
                   })}
                 </strong>
               </footer>
+
               {order.status !== "completed" && (
                 <button
                   className="btn primary full"
@@ -343,10 +332,7 @@ export default function OrdersManager({ cafes, onError, onToast }: Props) {
             <h2>Siparişi tamamla?</h2>
             <p>
               <strong>Masa {confirming.tableNo}</strong> ·{" "}
-              {confirming.items.reduce(
-                (sum, line) => sum + line.quantity,
-                0,
-              )}{" "}
+              {confirming.items.reduce((sum, line) => sum + line.quantity, 0)}{" "}
               ürün ·{" "}
               {confirming.total.toLocaleString("tr-TR", {
                 style: "currency",

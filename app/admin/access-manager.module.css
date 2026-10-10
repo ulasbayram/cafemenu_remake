@@ -1,0 +1,212 @@
+.manager {
+  border: 1px solid var(--admin-line);
+  border-radius: 13px;
+  padding: 22px;
+  margin-top: 24px;
+  background: var(--admin-panel);
+  color: var(--admin-text);
+}
+.manager > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+.manager > header span {
+  font-size: 9px;
+  letter-spacing: 1.4px;
+  color: var(--admin-accent);
+}
+.manager h2 {
+  font-size: 18px;
+  margin-top: 5px;
+}
+.manager h3 {
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.manager button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--admin-line);
+  border-radius: 7px;
+  padding: 10px 12px;
+  background: #0b181f;
+  color: var(--admin-accent);
+  font-size: 11px;
+}
+.manager button:hover:not(:disabled) {
+  border-color: var(--admin-accent);
+}
+.manager button:disabled {
+  opacity: 0.4;
+}
+.manager label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: var(--admin-muted);
+  font-size: 11px;
+  margin: 0;
+}
+.manager input,
+.manager select {
+  background: #0c1720;
+  border: 1px solid var(--admin-line);
+  color: var(--admin-text);
+  width: 100%;
+  min-width: 0;
+  font-size: 12px;
+}
+.manager input {
+  color-scheme: dark;
+}
+.manager .forms label input[type="date"] {
+  background: #0c1720;
+  border: 1px solid #2a414c;
+  color: #edf4f2;
+  border-radius: 8px;
+  min-height: 44px;
+  padding: 11px 13px;
+  transition:
+    border-color 160ms,
+    box-shadow 160ms;
+}
+.manager .forms label input[type="date"]:hover {
+  background: #10202b;
+  border-color: #3b675e;
+}
+.manager .forms label input[type="date"]:focus {
+  outline: none;
+  border-color: #5ee0b0;
+  box-shadow: 0 0 0 3px #5ee0b015;
+}
+.manager .forms label input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0.75;
+  cursor: pointer;
+}
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 13px;
+  background: #5ee0b00a;
+  border: 1px solid #5ee0b02b;
+  color: #a3c0b7;
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.8;
+  margin-bottom: 18px;
+}
+.error {
+  padding: 12px;
+  color: #e5b5a5;
+  background: #8c473720;
+  border: 1px solid #8c473740;
+  border-radius: 8px;
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+.accountSelect {
+  margin-bottom: 14px !important;
+}
+.recipient {
+  color: var(--admin-muted);
+  font-size: 11px;
+  line-height: 1.8;
+  margin: 15px 0;
+}
+.recipient strong {
+  color: #b7d2c8;
+  font-weight: 500;
+}
+.forms {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: 14px;
+}
+.forms form {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  border: 1px solid var(--admin-line);
+  border-radius: 10px;
+  padding: 17px;
+}
+.forms h3 {
+  color: var(--admin-accent);
+}
+.forms p,
+.forms small {
+  font-size: 10px;
+  color: var(--admin-muted);
+  line-height: 1.8;
+}
+.forms form > button {
+  margin-top: auto;
+  background: #5ee0b012;
+  border-color: #5ee0b038;
+}
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #b7d2c8;
+  margin: 24px 0 12px;
+}
+.list {
+  display: grid;
+  gap: 8px;
+  max-height: 420px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.list article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--admin-line);
+  border-radius: 9px;
+  padding: 13px;
+}
+.list strong,
+.list span,
+.list small {
+  display: block;
+}
+.list strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+.list span {
+  font-size: 11px;
+  color: var(--admin-muted);
+  margin-top: 4px;
+}
+.list small {
+  font-size: 10px;
+  color: #719389;
+  margin-top: 5px;
+}
+.list > p {
+  color: var(--admin-muted);
+  font-size: 11px;
+  padding: 12px;
+  border: 1px dashed var(--admin-line);
+  border-radius: 8px;
+}
+@media (max-width: 600px) {
+  .manager {
+    padding: 16px;
+  }
+  .list article {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+}

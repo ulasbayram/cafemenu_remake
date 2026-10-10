@@ -45,10 +45,30 @@ değişikliklerini aynı yetki kontrolüyle kaydeder.
 
 ## Doğrulama
 
+Siparişler ekranı anlık güncelleme ve sipariş sesi içerir. Manuel sipariş
+ekleme/düzenleme yalnızca Paket A Enterprise uzantısına aittir. Telefonun arka plan bildirimlerini etkinleştirmek için
+[sipariş bildirimleri kurulumunu](docs/order-notifications.tr.md) izleyin;
+`0004_order_notifications.sql` ve VAPID anahtarları gereklidir.
+
+Enterprise paketleri ve modüller admin panelindeki **Enterprise atamaları**
+sekmesinden veya işletme detayındaki **Paketler ve modüller** alanından yönetilir.
+Bir defalık kurulum: `0006_admin_access_assignments.sql`.
+[Atama akışı](docs/enterprise-foundation.tr.md).
+
+ERP Modülü stok, ürün reçeteleri, tamamlanan siparişlerde otomatik tüketim,
+gider, günlük/aylık/yıllık ciro ve tahmini kâr raporlarını içerir.
+Kurulum: `0006_admin_access_assignments.sql` ardından `0007_erp.sql`.
+[ERP kullanım ve hesaplama notları](docs/erp.tr.md).
+Yerel, kurgusal önizleme: `/modules/erp?preview=1`.
+
 ```sh
 node node_modules/typescript/bin/tsc --noEmit
 node node_modules/eslint/bin/eslint.js app lib db
 node scripts/editor-state-test.mjs && node scripts/logo-test.mjs && node scripts/social-links-test.mjs
+node scripts/order-management-test.mjs
+node scripts/enterprise-foundation-test.mjs
+node scripts/admin-access-test.mjs
+node scripts/erp-test.mjs
 ```
 
 ## Yayın

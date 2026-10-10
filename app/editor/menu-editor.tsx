@@ -1,4 +1,5 @@
 "use client";
+import AppSelect from "@/components/app-select";
 /* eslint-disable @next/next/no-img-element -- The uploaded logo is already optimized locally; no image service is needed. */
 import { useEffect, useState, useCallback, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
@@ -297,18 +298,19 @@ export default function MenuEditor({
                 <Monitor size={16} />
               </button>
             </div>
-            <select
-              aria-label="Menü önizleme teması"
+            <AppSelect
+              theme={access === "admin" ? "admin" : "standard"}
+              label="Menü önizleme teması"
               className="preview-theme-select"
               value={previewTheme}
-              onChange={(e) => setPreviewTheme(e.target.value)}
+              onValueChange={(value) => setPreviewTheme(value)}
             >
               <option value="auto">
                 Müşteri görünümü ({customerTheme === "dark" ? "Koyu" : "Açık"})
               </option>
               <option value="light">Açık tema önizlemesi</option>
               <option value="dark">Koyu tema önizlemesi</option>
-            </select>
+            </AppSelect>
             <button
               className="inspector-toggle"
               onClick={() => setInspector(!inspector)}
@@ -501,19 +503,19 @@ export default function MenuEditor({
                 {cafe.logoUrl && (
                   <label>
                     Logo boyutu
-                    <select
+                    <AppSelect
+                      theme={access === "admin" ? "admin" : "standard"}
                       value={cafe.logoSize || "medium"}
-                      onChange={(e) =>
+                      onValueChange={(value) =>
                         change({
-                          logoSize: e.target.value as
-                            "small" | "medium" | "large",
+                          logoSize: value as "small" | "medium" | "large",
                         })
                       }
                     >
                       <option value="small">Küçük</option>
                       <option value="medium">Orta</option>
                       <option value="large">Büyük</option>
-                    </select>
+                    </AppSelect>
                   </label>
                 )}
                 <div className="logo-controls">
@@ -596,16 +598,17 @@ export default function MenuEditor({
                 </label>
                 <label>
                   Başlık yazı tipi
-                  <select
+                  <AppSelect
+                    theme={access === "admin" ? "admin" : "standard"}
                     value={cafe.font || "serif"}
-                    onChange={(e) =>
-                      change({ font: e.target.value as Cafe["font"] })
+                    onValueChange={(value) =>
+                      change({ font: value as Cafe["font"] })
                     }
                   >
                     <option value="serif">Klasik · Serif</option>
                     <option value="sans">Modern · Sans serif</option>
                     <option value="mono">Daktilo · Monospace</option>
-                  </select>
+                  </AppSelect>
                 </label>
                 <p className="inspector-hint">
                   Misafirlerinizin gördüğü başlığı ve karşılama metnini buradan

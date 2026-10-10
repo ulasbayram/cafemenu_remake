@@ -1,4 +1,5 @@
 "use client";
+import AppSelect from "@/components/app-select";
 
 /* eslint-disable @next/next/no-img-element -- Product photos use public Supabase Storage URLs. */
 import {
@@ -224,16 +225,17 @@ export default function ProductsManager({
       <div className="products-toolbar">
         <label>
           Çalışılan işletme
-          <select
+          <AppSelect
+            theme={access === "admin" ? "admin" : "standard"}
             value={draft.id}
-            onChange={(event) => chooseCafe(event.target.value)}
+            onValueChange={(value) => chooseCafe(value)}
           >
             {cafes.map((cafe) => (
               <option key={cafe.id} value={cafe.id}>
                 {cafe.name}
               </option>
             ))}
-          </select>
+          </AppSelect>
         </label>
         <div>
           <span className={`product-save-status ${dirty ? "dirty" : ""}`}>
@@ -591,10 +593,11 @@ export default function ProductsManager({
               </label>
               <label>
                 Kategori
-                <select
+                <AppSelect
+                  theme={access === "admin" ? "admin" : "standard"}
                   value={editing.category}
-                  onChange={(event) =>
-                    setEditing({ ...editing, category: event.target.value })
+                  onValueChange={(value) =>
+                    setEditing({ ...editing, category: value })
                   }
                 >
                   {(categories.length ? categories : [editing.category]).map(
@@ -602,7 +605,7 @@ export default function ProductsManager({
                       <option key={name}>{name}</option>
                     ),
                   )}
-                </select>
+                </AppSelect>
               </label>
             </div>
             <ItemLabelEditor item={editing} onChange={setEditing} />

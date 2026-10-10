@@ -20,6 +20,9 @@ if (existsSync(envPath)) {
 // Expose server env to the Workers runtime via globalThis (db/jwt read FINCAN_*).
 const g = globalThis;
 const envKeys = [
+  "VAPID_PUBLIC_KEY",
+  "VAPID_PRIVATE_KEY",
+  "VAPID_SUBJECT",
   "DATABASE_URL",
   "SUPABASE_URL",
   "SUPABASE_SECRET_KEY",

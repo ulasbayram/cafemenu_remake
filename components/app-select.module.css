@@ -1,0 +1,186 @@
+.trigger.control[data-app-select][data-skin] {
+  --as-surface: #fff;
+  --as-text: #28392e;
+  --as-border: #dce4d8;
+  --as-accent: #245b46;
+  --as-muted: #82917b;
+  --as-highlight: #edf3e8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--as-border);
+  border-radius: 8px;
+  background: var(--as-surface);
+  color: var(--as-text);
+  font-size: 12px;
+  font-weight: 400;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 160ms,
+    box-shadow 160ms;
+}
+:global([data-theme="dark"])
+  .trigger.control[data-app-select][data-skin="standard"] {
+  --as-surface: #17221b;
+  --as-text: #e1eae0;
+  --as-border: #344438;
+  --as-accent: #a1c48b;
+  --as-muted: #9baa92;
+  --as-highlight: #2a3d29;
+}
+.trigger.control[data-app-select][data-skin="admin"] {
+  --as-surface: #0c1720;
+  --as-text: #edf4f2;
+  --as-border: #2a414c;
+  --as-accent: #5ee0b0;
+  --as-muted: #8aa6aa;
+  --as-highlight: #16342f;
+}
+.trigger.control[data-app-select][data-skin="enterprise"] {
+  --as-surface: #172d21;
+  --as-text: #d3e5d9;
+  --as-border: #3a5745;
+  --as-accent: #a5ccb9;
+  --as-muted: #8caaa0;
+  --as-highlight: #294333;
+}
+.trigger.control[data-app-select][data-skin="customer"] {
+  --as-surface: var(--public-surface, var(--menu-background, #fffdf7));
+  --as-text: var(--public-text, var(--menu-text, #303c2f));
+  --as-border: var(--public-border, #ddd);
+  --as-accent: var(--menu-accent, #245b46);
+  --as-muted: var(--public-muted, #82917b);
+  --as-highlight: color-mix(in srgb, var(--as-accent) 12%, var(--as-surface));
+}
+.trigger.control[data-app-select][data-skin]:hover:not(:disabled) {
+  border-color: var(--as-accent);
+  background: var(--as-surface);
+}
+.trigger.control[data-app-select][data-skin]:focus-visible,
+.trigger.control[data-app-select][data-state="open"] {
+  outline: none;
+  border-color: var(--as-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--as-accent) 15%, transparent);
+}
+.trigger.control[data-app-select]:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+.trigger.control[data-app-select][data-placeholder] {
+  color: var(--as-muted);
+}
+.trigger.control > span:first-child {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trigger.control .description {
+  display: none;
+}
+.caret {
+  display: flex;
+  flex-shrink: 0;
+  color: var(--as-accent);
+  transition: transform 160ms;
+}
+.trigger[data-state="open"] .caret {
+  transform: rotate(180deg);
+}
+.content {
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  width: var(--radix-select-trigger-width);
+  min-width: var(--radix-select-trigger-width);
+  max-width: calc(100vw - 24px);
+  max-height: min(340px, var(--radix-select-content-available-height));
+  overflow: hidden;
+  background: var(--as-surface);
+  color: var(--as-text);
+  border: 1px solid var(--as-border);
+  border-radius: 11px;
+  box-shadow: 0 12px 35px #00000035;
+  transform-origin: var(--radix-select-content-transform-origin);
+  animation: reveal 140ms ease-out;
+  font-family: "DM Sans", sans-serif;
+}
+.viewport {
+  flex: 1;
+  min-height: 0;
+  padding: 5px;
+}
+.option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 11px 35px 11px 11px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  outline: none;
+  cursor: pointer;
+  user-select: none;
+  overflow-wrap: anywhere;
+}
+.option[data-highlighted] {
+  background: var(--as-highlight);
+}
+.option[data-state="checked"] {
+  color: var(--as-accent);
+  background: var(--as-highlight);
+}
+.option[data-disabled] {
+  opacity: 0.4;
+  cursor: default;
+}
+.optionLabel {
+  display: block;
+}
+.description {
+  display: block;
+  margin-top: 3px;
+  color: var(--as-muted);
+  font-size: 10px;
+  font-weight: 400;
+}
+.check {
+  position: absolute;
+  right: 11px;
+  display: flex;
+  color: var(--as-accent);
+}
+.scroll {
+  display: flex;
+  justify-content: center;
+  padding: 5px;
+  color: var(--as-accent);
+  background: var(--as-surface);
+}
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-3px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .content {
+    animation: none;
+  }
+  .trigger.control,
+  .caret {
+    transition: none;
+  }
+}

@@ -1,4 +1,5 @@
 "use client";
+import AppSelect from "@/components/app-select";
 /* eslint-disable @next/next/no-html-link-for-pages -- Sites authentication requires top-level navigation, never Next prefetch. */
 /* eslint-disable @next/next/no-img-element -- QR is an in-memory PNG, not an image optimizer source. */
 import Link from "next/link";
@@ -52,6 +53,8 @@ import { api } from "@/lib/client-api";
 import ProductsManager from "./products-manager";
 import OrdersManager from "./orders-manager";
 import VisitChart from "./visit-chart";
+import EnterpriseNavigation from "@/enterprise/navigation";
+import ModuleNavigation from "@/modules/navigation";
 type Tab =
   | "overview"
   | "cafes"
@@ -348,6 +351,9 @@ export default function Dashboard({
   }
   async function logout() {
     try {
+      const { disableOrderPush } =
+        await import("@/lib/order-notifications-client");
+      await disableOrderPush().catch(() => {});
       const { supabase } = await import("@/lib/supabase-browser");
       await supabase().auth.signOut();
       window.location.assign(new URL("/login", window.location.origin).href);
@@ -483,6 +489,8 @@ export default function Dashboard({
             </button>
           ))}
         </nav>
+        {signedIn && <EnterpriseNavigation />}
+        {signedIn && <ModuleNavigation />}
         <div className="sidebar-bottom">
           <div className="small-promo">
             <span className="promo-icon">
@@ -705,10 +713,11 @@ export default function Dashboard({
             {tab === "stats" && (
               <>
                 <div className="filter-row">
-                  <select
-                    aria-label="İşletme filtresi"
+                  <AppSelect
+                    theme="standard"
+                    label="İşletme filtresi"
                     value={selected}
-                    onChange={(e) => setSelected(e.target.value)}
+                    onValueChange={(value) => setSelected(value)}
                   >
                     <option value="all">Tüm işletmeler</option>
                     {cafes.map((c) => (
@@ -716,7 +725,7 @@ export default function Dashboard({
                         {c.name}
                       </option>
                     ))}
-                  </select>
+                  </AppSelect>
                   <div className="period-control">
                     {["1", "7", "30"].map((v, i) => (
                       <button
@@ -1193,9 +1202,10 @@ export default function Dashboard({
                   </div>
                   <label>
                     Aktarılacak işletme
-                    <select
+                    <AppSelect
+                      theme="standard"
                       value={scanCafe}
-                      onChange={(e) => setScanCafe(e.target.value)}
+                      onValueChange={(value) => setScanCafe(value)}
                     >
                       <option value="">İşletme seçin</option>
                       {cafes.map((c) => (
@@ -1203,7 +1213,7 @@ export default function Dashboard({
                           {c.name}
                         </option>
                       ))}
-                    </select>
+                    </AppSelect>
                   </label>
                   {!importItems.length ? (
                     <div className="import-empty">
@@ -1532,22 +1542,23 @@ export default function Dashboard({
             </label>
             <label>
               Sipariş yöntemi
-              <select
+              <AppSelect
+                theme="standard"
                 value={cafeDetails.orderPolicy?.mode ?? "token"}
-                onChange={(e) =>
+                onValueChange={(value) =>
                   setCafeDetails({
                     ...cafeDetails,
                     orderPolicy: {
                       ...cafeDetails.orderPolicy,
                       enabled: cafeDetails.orderPolicy?.enabled ?? true,
-                      mode: e.target.value as "token" | "token+daily" | "open",
+                      mode: value as "token" | "token+daily" | "open",
                     },
                   })
                 }
               >
                 <option value="token">Masa QR kodu ile</option>
                 <option value="open">Menüye giren herkes</option>
-              </select>
+              </AppSelect>
               <small className="muted">
                 QR kodu: yalnızca masanızdaki kod okutulunca sipariş açılır.
                 Açık: menüyü açan herkes masa numarasını seçip sipariş
