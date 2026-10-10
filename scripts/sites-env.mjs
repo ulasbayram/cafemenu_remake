@@ -56,6 +56,8 @@ for (const key of envKeys) {
 }
 
 process.env.CLOUDFLARE_CF_FETCH_ENABLED ||= "false";
+// wrangler only forwards process.env to the dev worker when this is set.
+process.env.CLOUDFLARE_INCLUDE_PROCESS_ENV ||= "true";
 process.env.WRANGLER_SEND_METRICS ||= "false";
 process.env.WRANGLER_WRITE_LOGS ||= "false";
 process.env.WRANGLER_LOG_PATH ||= path.join(runtimeRoot, "wrangler/logs");
