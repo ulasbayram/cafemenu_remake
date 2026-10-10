@@ -182,7 +182,7 @@ export default function MenuEditor({
           <button
             className="icon-btn"
             aria-label={
-              access === "admin" ? "Admin paneline dön" : "Menü yönetimine dön"
+              access === "admin" ? "Admin paneline dön" : "Menü tasarımına dön"
             }
             onClick={back}
           >

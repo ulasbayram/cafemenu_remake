@@ -411,7 +411,7 @@ export default function Dashboard({
     nav = [
       { id: "overview", label: "Genel bakış", icon: LayoutDashboard },
       { id: "cafes", label: "İşletmelerim", icon: Store },
-      { id: "menus", label: "Menü yönetimi", icon: BookOpen },
+      { id: "menus", label: "Menü tasarımı", icon: BookOpen },
       { id: "products", label: "Ürünler", icon: Package },
       { id: "orders", label: "Siparişler", icon: ClipboardList },
       { id: "import", label: "Menü yapıştır", icon: ScanLine },
@@ -420,7 +420,7 @@ export default function Dashboard({
   const heading: Record<Tab, string> = {
     overview: "Genel bakış",
     cafes: "İşletmelerim",
-    menus: "Menü yönetimi",
+    menus: "Menü tasarımı",
     products: "Ürünler ve kategoriler",
     orders: "Siparişler",
     import: "Fiziksel menünüz, dijital olsun.",
@@ -689,7 +689,7 @@ export default function Dashboard({
                         menüsü henüz yayında değil
                       </strong>
                       <p>
-                        Hazır olduğunuzda menü yönetiminden yayınlayabilirsiniz.
+                        Hazır olduğunuzda menü tasarımından yayınlayabilirsiniz.
                       </p>
                     </div>
                     <button

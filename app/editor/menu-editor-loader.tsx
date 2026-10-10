@@ -51,7 +51,7 @@ export default function MenuEditorLoader() {
             <h2>İşletme açılamadı.</h2>
             <p>{error}</p>
             <button className="btn primary full" onClick={() => router.push("/?view=menus")}>
-              Menü yönetimine dön
+              Menü tasarımına dön
             </button>
           </form>
         </div>
