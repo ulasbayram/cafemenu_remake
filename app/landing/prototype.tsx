@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import NavLink from "@/components/nav-link";
 import {
   ArrowUpRight,
   ArrowRight,
@@ -116,7 +116,7 @@ export default function LandingPrototype() {
         İçeriğe geç
       </a>
       <header className={styles.header}>
-        <Link
+        <NavLink
           href="/landing"
           className={styles.brand}
           aria-label="Fincan ana sayfa"
@@ -125,7 +125,7 @@ export default function LandingPrototype() {
             <Coffee size={23} strokeWidth={1.7} />
           </span>
           fincan<span className={styles.brandDot}>.</span>
-        </Link>
+        </NavLink>
         <nav
           className={`${styles.nav} ${mobileNav ? styles.navOpen : ""}`}
           aria-label="Ana gezinme"
@@ -154,12 +154,12 @@ export default function LandingPrototype() {
           >
             {dark ? <Sun size={18} /> : <Moon size={18} />}
           </button>
-          <Link className={styles.login} href="/login">
+          <NavLink className={styles.login} href="/login">
             Giriş yap <ArrowUpRight size={15} />
-          </Link>
-          <Link className={styles.smallCta} href="/login">
+          </NavLink>
+          <NavLink className={styles.smallCta} href="/login">
             Hemen başla <ArrowRight size={15} />
-          </Link>
+          </NavLink>
           <button
             className={styles.navToggle}
             aria-label={mobileNav ? "Menüyü kapat" : "Menüyü aç"}
@@ -187,9 +187,9 @@ export default function LandingPrototype() {
               ürünleri, fiyatları ve siparişleri tek bir yerden yönetin.
             </p>
             <div className={styles.heroActions}>
-              <Link href="/login" className={styles.primary}>
+              <NavLink href="/login" className={styles.primary}>
                 Menümü oluşturmaya başla <ArrowUpRight size={20} />
-              </Link>
+              </NavLink>
               <a href="#menu-ornegi" className={styles.secondary}>
                 Bir menüye göz at <ArrowRight size={18} />
               </a>
@@ -372,9 +372,9 @@ export default function LandingPrototype() {
               Yeni bir alışkanlık edinmenize gerek yok. Ürünlerinizi
               biliyorsunuz; gerisini birlikte düzenleyelim.
             </p>
-            <Link href="/login">
+            <NavLink href="/login">
               İlk adımı at <ArrowUpRight size={18} />
-            </Link>
+            </NavLink>
           </div>
           <div className={styles.steps}>
             {[
@@ -510,19 +510,19 @@ export default function LandingPrototype() {
             bir sayfa açın.
           </h2>
           <p>Bir fincanla başlayın. İşletmenize yakışan menüyü hazırlayın.</p>
-          <Link href="/login" className={styles.primary}>
+          <NavLink href="/login" className={styles.primary}>
             Hemen başla <ArrowUpRight size={19} />
-          </Link>
+          </NavLink>
         </section>
       </main>
       <footer className={styles.footer}>
-        <Link href="/landing" className={styles.brand}>
+        <NavLink href="/landing" className={styles.brand}>
           <Coffee size={22} /> fincan.
-        </Link>
+        </NavLink>
         <span>Güzel menüler. Kolay yönetim.</span>
-        <Link href="/">
+        <NavLink href="/">
           Yönetim paneli <ArrowUpRight size={14} />
-        </Link>
+        </NavLink>
         <small>Landing page prototipi</small>
       </footer>
     </div>

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import NavLink from "@/components/nav-link";
 import { PackageOpen, ArrowUpRight } from "lucide-react";
 import { api } from "@/lib/client-api";
 import styles from "@/enterprise/navigation.module.css";
@@ -21,11 +21,11 @@ export default function ModuleNavigation() {
   return (
     <div className={styles.links}>
       <span>MODÜLLER</span>
-      <Link href="/modules/erp">
+      <NavLink href="/modules/erp">
         <PackageOpen size={17} />
         <span>Stok · ERP</span>
         <ArrowUpRight size={14} />
-      </Link>
+      </NavLink>
     </div>
   );
 }

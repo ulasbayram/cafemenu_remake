@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import NavLink from "@/components/nav-link";
 import { useRouter } from "next/navigation";
 import ModuleNavigation from "@/modules/navigation";
 import {
@@ -102,10 +102,10 @@ export default function PackageADashboard({
   return (
     <main className={styles.shell}>
       <aside className={styles.sidebar}>
-        <Link href="/?view=overview" className={styles.brand}>
+        <NavLink href="/?view=overview" className={styles.brand}>
           <Coffee size={24} />
           fincan<span>enterprise</span>
-        </Link>
+        </NavLink>
         <div className={styles.customer}>
           <span>
             <Crown size={20} />
@@ -144,9 +144,9 @@ export default function PackageADashboard({
             <Crown size={15} />
             PAKET A · ENTERPRISE
           </span>
-          <Link href="/?view=overview">
+          <NavLink href="/?view=overview">
             Standart panel <ArrowUpRight size={15} />
-          </Link>
+          </NavLink>
         </header>
         <div className={styles.content}>
           {preview && (
@@ -184,22 +184,22 @@ export default function PackageADashboard({
                 aria-label="Ayrı örnek hesap senaryoları"
               >
                 <span>Örnek hesabı ayrı aç</span>
-                <Link
+                <NavLink
                   href="/enterprise/package-a?preview=1&scenario=ortak"
                   aria-current={
                     cafe?.id === "preview-ortak" ? "page" : undefined
                   }
                 >
                   Ortak Kafe
-                </Link>
-                <Link
+                </NavLink>
+                <NavLink
                   href="/enterprise/package-a?preview=1&scenario=nova"
                   aria-current={
                     cafe?.id === "preview-nova" ? "page" : undefined
                   }
                 >
                   Nova Kafe
-                </Link>
+                </NavLink>
               </div>
             )}
           </div>

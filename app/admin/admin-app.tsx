@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element -- Cafe logos are user-provided public Storage URLs. */
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
+import NavLink from "@/components/nav-link";
 import { useRouter } from "next/navigation";
 import {
   Activity,
@@ -246,9 +246,9 @@ export default function AdminApp() {
             <span className="admin-live">
               <i /> Sistem aktif
             </span>
-            <Link href="/" target="_blank">
+            <NavLink href="/" target="_blank">
               İşletme uygulamasını aç <ExternalLink size={14} />
-            </Link>
+            </NavLink>
           </div>
         </header>
 
@@ -650,16 +650,16 @@ function CafeDrawer({
           <CafeQrPreview cafeId={cafe.id} />
         </div>
         <div className="admin-drawer-actions">
-          <Link href={`/menu/${cafe.slug}`} target="_blank">
+          <NavLink href={`/menu/${cafe.slug}`} target="_blank">
             Canlı menüyü aç <ExternalLink size={15} />
-          </Link>
-          <Link
+          </NavLink>
+          <NavLink
             href={`/print/qr-sheet/${cafe.id}`}
             target="_blank"
             rel="noreferrer"
           >
             QR kâğıtlarını aç <Printer size={15} />
-          </Link>
+          </NavLink>
           <button
             className="admin-primary-button"
             onClick={() => window.location.assign(`/admin/editor/${cafe.id}`)}

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import NavLink from "@/components/nav-link";
 import { Crown, ArrowUpRight } from "lucide-react";
 import { api } from "@/lib/client-api";
 import styles from "./navigation.module.css";
@@ -27,11 +27,11 @@ export default function EnterpriseNavigation() {
     <div className={styles.links}>
       <span>ÖZEL ÇALIŞMA ALANI</span>
       {entries.map((entry) => (
-        <Link key={entry.key} href={entry.href}>
+        <NavLink key={entry.key} href={entry.href}>
           <Crown size={17} />
           <span>{entry.title}</span>
           <ArrowUpRight size={14} />
-        </Link>
+        </NavLink>
       ))}
     </div>
   );

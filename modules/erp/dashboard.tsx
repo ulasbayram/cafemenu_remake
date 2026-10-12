@@ -6,7 +6,7 @@ import {
   useCallback,
   type FormEvent,
 } from "react";
-import Link from "next/link";
+import NavLink from "@/components/nav-link";
 import { useRouter } from "next/navigation";
 import {
   PackageOpen,
@@ -270,9 +270,9 @@ export default function ErpDashboard({
   return (
     <main className={styles.shell}>
       <aside className={styles.sidebar}>
-        <Link href="/?view=overview" className={styles.brand}>
+        <NavLink href="/?view=overview" className={styles.brand}>
           fincan <span>ERP</span>
-        </Link>
+        </NavLink>
         <div className={styles.workspace}>
           <PackageOpen size={20} />
           <div>
@@ -293,10 +293,10 @@ export default function ErpDashboard({
           ))}
         </nav>
         <ModuleNavigation />
-        <Link href="/?view=overview" className={styles.back}>
+        <NavLink href="/?view=overview" className={styles.back}>
           <ArrowLeft size={16} />
           Ana panele dön
-        </Link>
+        </NavLink>
       </aside>
       <section className={styles.content}>
         <header className={styles.header}>

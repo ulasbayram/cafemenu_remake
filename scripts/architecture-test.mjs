@@ -178,6 +178,23 @@ for (const rel of [
   );
 }
 
+// next/link's client navigation is broken on this vinext build: its click
+// handler calls a missing `navigateClientSide` and throws inside
+// startTransition, so the URL never changes. All navigation must go through
+// the plain-anchor NavLink wrapper instead.
+for (const file of [...walk(join(root, "app")), ...walk(join(root, "enterprise")), ...walk(join(root, "modules")), ...walk(join(root, "components"))]) {
+  const rel = relative(root, file);
+  const source = readFileSync(file, "utf8");
+  assert.ok(
+    !/from\s+"next\/link"/.test(source),
+    `${rel} imports next/link, which cannot navigate on vinext 1.0.0-beta.5; use @/components/nav-link`,
+  );
+  assert.ok(
+    !/<Link[\s>]/.test(source),
+    `${rel} uses <Link>; use <NavLink> from @/components/nav-link`,
+  );
+}
+
 // ── Deploy wiring: env is forwarded, migrations listable ────────────────────
 const sitesEnv = readFileSync(join(root, "scripts/sites-env.mjs"), "utf8");
 assert.match(
@@ -188,5 +205,5 @@ assert.match(
 assert.match(sitesEnv, /VAPID_PUBLIC_KEY/, "VAPID env must be forwarded");
 
 console.log(
-  "PASS: core→package import boundary, package contract exports, route contracts, deleted routes stay gone, no bare-\"/\" self-redirect links, module cross-links mounted, migration numbering + ERP trigger fault tolerance, deploy env wiring",
+  "PASS: core→package import boundary, package contract exports, route contracts, deleted routes stay gone, no bare-\"/\" self-redirect links, module cross-links mounted, no next/link usage, migration numbering + ERP trigger fault tolerance, deploy env wiring",
 );

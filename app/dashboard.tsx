@@ -2,7 +2,7 @@
 import AppSelect from "@/components/app-select";
 /* eslint-disable @next/next/no-html-link-for-pages -- Sites authentication requires top-level navigation, never Next prefetch. */
 /* eslint-disable @next/next/no-img-element -- QR is an in-memory PNG, not an image optimizer source. */
-import Link from "next/link";
+import NavLink from "@/components/nav-link";
 import { useRouter } from "next/navigation";
 import ThemeToggle from "./theme-toggle";
 import { useEffect, useState, useRef, type ReactNode } from "react";
@@ -455,12 +455,12 @@ export default function Dashboard({
         >
           <ArrowLeft size={18} /> Geri
         </button>
-        <Link className="brand" href="/?view=overview">
+        <NavLink className="brand" href="/?view=overview">
           <span>
             <Coffee size={24} />
           </span>
           fincan<span className="brand-period">.</span>
-        </Link>
+        </NavLink>
         <div className="workspace-label">ÇALIŞMA ALANINIZ</div>
         <button className="workspace-switch" onClick={() => navigate("cafes")}>
           <span className="workspace-icon">
