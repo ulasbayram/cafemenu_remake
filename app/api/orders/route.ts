@@ -4,6 +4,7 @@ import { asUser, owner, userJwt, fail, sameOrigin } from "@/lib/server";
 import { verifyTableOrder, dailyCodeFor } from "@/lib/table-order-token";
 import { rateCheck } from "@/lib/rate-limit";
 import type { Item, OrderPolicy } from "@/lib/menu";
+import { orderTotal } from "@/lib/orders";
 import { notifyNewOrder } from "@/lib/order-push";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -175,10 +176,7 @@ export async function POST(request: Request) {
         { error: "Sepette artık satışta olmayan bir ürün var." },
         { status: 409 },
       );
-    const total = lines.reduce(
-      (sum, line) => sum + line.unitPrice * line.quantity,
-      0,
-    );
+    const total = orderTotal(lines);
     const { data: created, error: insertError } = await client
       .from("orders")
       .insert({

@@ -28,7 +28,12 @@ export const itemSchema = z.object({
   id: z.string().min(1).max(80),
   name: z.string().trim().min(1).max(100),
   description: z.string().max(300),
-  price: z.number().finite().min(0).max(1000000),
+  price: z
+    .number()
+    .finite()
+    .min(0)
+    .max(1000000)
+    .transform((v) => Math.round(v * 100) / 100),
   category: z.string().trim().min(1).max(60),
   available: z.boolean(),
   photo: z.string().url().max(500).nullable().optional(),

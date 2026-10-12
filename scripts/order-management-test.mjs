@@ -146,8 +146,10 @@ registerHooks({
   },
 });
 
-const { manualOrderSchema, manualOrderLines, orderTotal } =
-  await import("../enterprise/extensions/package-a/orders.ts");
+const { manualOrderSchema, manualOrderLines } = await import(
+  "../enterprise/extensions/package-a/orders.ts"
+);
+const { orderTotal } = await import("../lib/orders.ts");
 const { POST } =
   await import("../app/api/enterprise/package-a/orders/manual/route.ts");
 const defaultRoute = await import("../app/api/orders/[id]/route.ts");

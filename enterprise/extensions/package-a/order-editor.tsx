@@ -6,7 +6,7 @@ import { X, Plus, Trash2, LoaderCircle, Save } from "lucide-react";
 import type { Cafe } from "@/lib/menu";
 import type { CafeOrder, OrderLine } from "@/lib/orders";
 import { api } from "@/lib/client-api";
-import { orderTotal } from "./orders";
+import { orderTotal } from "@/lib/orders";
 
 export default function OrderEditor({
   cafe,

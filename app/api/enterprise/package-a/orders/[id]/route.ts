@@ -1,12 +1,12 @@
 import { svc } from "@/db";
 import { asUser, owner, userJwt, fail, sameOrigin } from "@/lib/server";
 import type { OrderLine } from "@/lib/orders";
+import { orderTotal } from "@/lib/orders";
 import type { Item } from "@/lib/menu";
 import { enterpriseAssignment } from "@/enterprise/server";
 import {
   manualOrderSchema,
   manualOrderLines,
-  orderTotal,
 } from "@/enterprise/extensions/package-a/orders";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export async function PATCH(

@@ -8,7 +8,7 @@ import { api } from "@/lib/client-api";
 import { useOrderFeed } from "@/hooks/use-order-feed";
 import OrderNotificationControls from "@/app/order-notification-controls";
 import OrderEditor from "./order-editor";
-import { orderTotal } from "./orders";
+import { orderTotal } from "@/lib/orders";
 import type { EnterpriseOrder } from "./types";
 import styles from "./dashboard.module.css";
 

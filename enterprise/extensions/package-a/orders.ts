@@ -46,12 +46,3 @@ export function manualOrderLines(
     };
   });
 }
-
-export function orderTotal(lines: OrderLine[]) {
-  return (
-    lines.reduce(
-      (sum, line) => sum + Math.round(line.unitPrice * 100) * line.quantity,
-      0,
-    ) / 100
-  );
-}

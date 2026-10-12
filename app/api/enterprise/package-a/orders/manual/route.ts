@@ -4,8 +4,8 @@ import { asUser, owner, userJwt, sameOrigin, fail } from "@/lib/server";
 import {
   manualOrderSchema,
   manualOrderLines,
-  orderTotal,
 } from "@/enterprise/extensions/package-a/orders";
+import { orderTotal } from "@/lib/orders";
 import type { Item } from "@/lib/menu";
 import { notifyNewOrder } from "@/lib/order-push";
 
