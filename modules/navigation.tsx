@@ -8,9 +8,9 @@ export default function ModuleNavigation() {
   const [erp, setErp] = useState(false);
   useEffect(() => {
     let active = true;
-    api<{ erp: boolean }>("/api/modules/access")
+    api<{ modules: { erp: boolean } }>("/api/access")
       .then((v) => {
-        if (active) setErp(v.erp);
+        if (active) setErp(v.modules.erp);
       })
       .catch(() => {});
     return () => {

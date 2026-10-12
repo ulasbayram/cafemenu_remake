@@ -105,11 +105,11 @@ export default function ErpDashboard({
         return;
       }
       const [access, rows] = await Promise.all([
-        api<{ erp: boolean }>("/api/modules/access"),
+        api<{ modules: { erp: boolean } }>("/api/access"),
         api<Cafe[]>("/api/cafes"),
       ]);
       if (!active) return;
-      if (!access.erp)
+      if (!access.modules.erp)
         throw new Error(
           "Bu hesabın aktif ERP Modülü erişimi yok. Admin panelinden modül ataması yapılabilir.",
         );

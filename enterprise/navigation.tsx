@@ -11,9 +11,11 @@ export default function EnterpriseNavigation() {
   >([]);
   useEffect(() => {
     let active = true;
-    api<typeof entries>("/api/enterprise/access")
+    api<{ packages: { key: string; title: string; href: string }[] }>(
+      "/api/access",
+    )
       .then((value) => {
-        if (active) setEntries(value);
+        if (active) setEntries(value.packages);
       })
       .catch(() => {});
     return () => {
