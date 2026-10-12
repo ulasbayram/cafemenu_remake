@@ -7,6 +7,7 @@ import {
   sameOrigin,
 } from "@/lib/server";
 import { cafeSchema } from "@/lib/menu";
+import { syncMenuItems } from "@/lib/menu-items";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -110,6 +111,7 @@ export async function PUT(
         );
       throw error;
     }
+    await syncMenuItems(client, id, c.items);
     return Response.json({ ...c, id, createdAt: existing.created_at });
   } catch (e) {
     return fail(e);

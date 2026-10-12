@@ -1,6 +1,7 @@
 import { svc } from "@/db";
 import { verifyAdmin } from "@/lib/jwt";
 import { cafeSchema } from "@/lib/menu";
+import { syncMenuItems } from "@/lib/menu-items";
 import { fail, sameOrigin } from "@/lib/server";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -111,6 +112,7 @@ export async function PUT(
       })
       .eq("id", id);
     if (error) throw error;
+    await syncMenuItems(svc(), id, cafe.items);
     return Response.json({ ...cafe, id, createdAt: existing.createdAt });
   } catch (error) {
     return fail(error);

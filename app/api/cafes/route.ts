@@ -7,6 +7,7 @@ import {
   sameOrigin,
 } from "@/lib/server";
 import { cafeSchema } from "@/lib/menu";
+import { syncMenuItems } from "@/lib/menu-items";
 
 const cafeFieldNames: Record<string, string> = {
   name: "Kafe adı",
@@ -105,6 +106,7 @@ export async function POST(request: Request) {
         );
       throw error;
     }
+    await syncMenuItems(asUser(userJwt(request)), data.id, c.items);
     return Response.json(
       { ...c, id: data.id, createdAt: data.created_at },
       { status: 201 },
