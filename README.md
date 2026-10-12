@@ -64,12 +64,14 @@ Yerel, kurgusal önizleme: `/modules/erp?preview=1`.
 ```sh
 node node_modules/typescript/bin/tsc --noEmit
 node node_modules/eslint/bin/eslint.js app lib db
-node scripts/editor-state-test.mjs && node scripts/logo-test.mjs && node scripts/social-links-test.mjs
-node scripts/order-management-test.mjs
-node scripts/enterprise-foundation-test.mjs
-node scripts/admin-access-test.mjs
-node scripts/erp-test.mjs
+npm test
 ```
+
+`npm test` tüm regresyon paketlerini çalıştırır: mimari sözleşme
+(`architecture-test.mjs`), çekirdek mantık (`core-logic-test.mjs`), editör durumu,
+logo paleti, sosyal bağlantılar, `menu_items` eşitleme/backfill, sipariş toplamı ve
+Paket A yazma uçları, Enterprise kapsam ayrımı, admin atama yetkisi ve ERP
+tetikleyicisi (PGlite üzerinde gerçek migration).
 
 ## Yayın
 
