@@ -54,11 +54,21 @@ try {
       "utf8",
     ),
   );
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../supabase/migrations/0009_erp_trigger_safety.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   await q("insert into auth.users values($1),($2)", [user, otherUser]);
   const menu = JSON.stringify({
     items: [
       { id: "latte", name: "Latte" },
       { id: "unknown", name: "Unknown" },
+      { id: "brokenprod", name: "Kırılgan" },
     ],
   });
   await q("insert into cafes values($1,$2,$3),($4,$5,$3)", [
@@ -454,8 +464,52 @@ try {
       (r) => r.title === "Satışı azalan ürün",
     ),
   );
+  // A malformed quantity must not roll back order completion (0009 wrapper).
+  // Dedicated ingredient+recipe so the cast path is exercised regardless of
+  // earlier test state (which revokes/expires the module grant).
+  await q(
+    "update account_module_grants set status='active', expires_at=null where user_id=$1",
+    [user],
+  );
+  await mutate({
+    action: "ingredient",
+    name: "Kırılgan",
+    unit: "kg",
+    quantity: 5,
+    unitCost: 10,
+    threshold: 0,
+  });
+  const fragile = (
+    await q("select id from erp_inventory where cafe_id=$1 and name='Kırılgan'", [
+      cafe,
+    ])
+  ).rows[0].id;
+  await mutate({
+    action: "recipe",
+    productId: "brokenprod",
+    parts: [{ ingredientId: fragile, quantity: 0.5 }],
+  });
+  const brokenOrder = uuid();
+  await q("insert into orders values($1,$2,'waiting',$3,10)", [
+    brokenOrder,
+    cafe,
+    JSON.stringify([
+      { id: "brokenprod", name: "Kırılgan", quantity: "x", unitPrice: 10 },
+    ]),
+  ]);
+  await q("update orders set status='completed' where id=$1", [brokenOrder]);
+  assert.equal(
+    (await q("select status from orders where id=$1", [brokenOrder])).rows[0]
+      .status,
+    "completed",
+  );
+  assert.equal(
+    (await q("select count(*) from erp_sales where order_id=$1", [brokenOrder]))
+      .rows[0].count,
+    0,
+  );
   console.log(
-    "PASS: real Postgres migration/trigger, 100 L → 99.75 L, paid-only deduction, idempotency, recipe rollback, tenant isolation, weighted costs, historical snapshots, missing costs, shortages, revoke, private tables/RPC, Istanbul day/profit/insights",
+    "PASS: real Postgres migration/trigger, 100 L → 99.75 L, paid-only deduction, idempotency, recipe rollback, tenant isolation, weighted costs, historical snapshots, missing costs, shortages, revoke, private tables/RPC, Istanbul day/profit/insights, ERP fault does not block order completion",
   );
 } finally {
   await db.close();
