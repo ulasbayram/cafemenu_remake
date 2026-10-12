@@ -455,7 +455,7 @@ export default function Dashboard({
         >
           <ArrowLeft size={18} /> Geri
         </button>
-        <Link className="brand" href="/">
+        <Link className="brand" href="/?view=overview">
           <span>
             <Coffee size={24} />
           </span>

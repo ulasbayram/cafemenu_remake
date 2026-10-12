@@ -144,6 +144,40 @@ assert.match(
   "erp_complete_order must swallow faults so orders are never blocked",
 );
 
+// ── No self-redirect loops from package pages back into the app ─────────────
+// app/page.tsx redirects a bare "/" to the enterprise package for those users,
+// so a package page linking to "/" bounces back to itself (a dead button).
+// Every in-app back/brand link on a package page must target "/?view=…".
+for (const rel of [
+  "enterprise/extensions/package-a/dashboard.tsx",
+  "modules/erp/dashboard.tsx",
+  "app/dashboard.tsx",
+]) {
+  const source = readFileSync(join(root, rel), "utf8");
+  const bare = [...source.matchAll(/href="\/(?:\?[^"]*)?"/g)].filter(
+    (m) => m[0] === 'href="/"',
+  );
+  assert.equal(
+    bare.length,
+    0,
+    `${rel} links to bare "/" which redirects enterprise users back to their package; use "/?view=overview"`,
+  );
+}
+
+// The package dashboards must surface the same module cross-links as the
+// regular dashboard.
+for (const rel of [
+  "enterprise/extensions/package-a/dashboard.tsx",
+  "modules/erp/dashboard.tsx",
+]) {
+  const source = readFileSync(join(root, rel), "utf8");
+  assert.match(
+    source,
+    /<ModuleNavigation\s*\/>/,
+    `${rel} must mount ModuleNavigation so module links are reachable`,
+  );
+}
+
 // ── Deploy wiring: env is forwarded, migrations listable ────────────────────
 const sitesEnv = readFileSync(join(root, "scripts/sites-env.mjs"), "utf8");
 assert.match(
@@ -154,5 +188,5 @@ assert.match(
 assert.match(sitesEnv, /VAPID_PUBLIC_KEY/, "VAPID env must be forwarded");
 
 console.log(
-  "PASS: core→package import boundary, package contract exports, route contracts, deleted routes stay gone, migration numbering + ERP trigger fault tolerance, deploy env wiring",
+  "PASS: core→package import boundary, package contract exports, route contracts, deleted routes stay gone, no bare-\"/\" self-redirect links, module cross-links mounted, migration numbering + ERP trigger fault tolerance, deploy env wiring",
 );

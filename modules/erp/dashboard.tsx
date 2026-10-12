@@ -23,6 +23,7 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import AppSelect from "@/components/app-select";
+import ModuleNavigation from "@/modules/navigation";
 import ThemeToggle from "@/app/theme-toggle";
 import { api } from "@/lib/client-api";
 import { supabase } from "@/lib/supabase-browser";
@@ -269,7 +270,7 @@ export default function ErpDashboard({
   return (
     <main className={styles.shell}>
       <aside className={styles.sidebar}>
-        <Link href="/" className={styles.brand}>
+        <Link href="/?view=overview" className={styles.brand}>
           fincan <span>ERP</span>
         </Link>
         <div className={styles.workspace}>
@@ -291,7 +292,8 @@ export default function ErpDashboard({
             </button>
           ))}
         </nav>
-        <Link href="/" className={styles.back}>
+        <ModuleNavigation />
+        <Link href="/?view=overview" className={styles.back}>
           <ArrowLeft size={16} />
           Ana panele dön
         </Link>

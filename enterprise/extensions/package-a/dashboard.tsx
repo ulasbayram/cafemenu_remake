@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import ModuleNavigation from "@/modules/navigation";
 import {
-  ArrowLeft,
   ArrowUpRight,
   Building2,
   ChartNoAxesCombined,
@@ -102,7 +102,7 @@ export default function PackageADashboard({
   return (
     <main className={styles.shell}>
       <aside className={styles.sidebar}>
-        <Link href="/" className={styles.brand}>
+        <Link href="/?view=overview" className={styles.brand}>
           <Coffee size={24} />
           fincan<span>enterprise</span>
         </Link>
@@ -129,16 +129,13 @@ export default function PackageADashboard({
             </button>
           ))}
         </nav>
+        <ModuleNavigation />
         <div className={styles.sidebarFoot}>
           <p>
             Özel ekranlar.
             <br />
             Yalnızca sizin veriniz.
           </p>
-          <Link href="/">
-            <ArrowLeft size={15} />
-            Standart panele dön
-          </Link>
         </div>
       </aside>
       <div className={styles.workspace}>
@@ -147,7 +144,7 @@ export default function PackageADashboard({
             <Crown size={15} />
             PAKET A · ENTERPRISE
           </span>
-          <Link href="/">
+          <Link href="/?view=overview">
             Standart panel <ArrowUpRight size={15} />
           </Link>
         </header>
