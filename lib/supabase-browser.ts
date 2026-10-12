@@ -1,5 +1,6 @@
 "use client";
-import { createClient, type SupabaseClient } from "supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 let client: SupabaseClient | undefined;
 
@@ -15,7 +16,7 @@ function publicKey(): string | undefined {
   );
 }
 
-/** Browser Supabase client (PKCE, session in localStorage). */
+/** Browser Supabase client. Session lives in cookies so server gates can read it. */
 export function supabase(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = publicKey();
@@ -23,8 +24,6 @@ export function supabase(): SupabaseClient {
     throw new Error(
       "Supabase yapılandırması eksik. NEXT_PUBLIC_SUPABASE_URL ve NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (veya eski ANON_KEY) gerekli.",
     );
-  client ??= createClient(url, key, {
-    auth: { flowType: "pkce", detectSessionInUrl: true, persistSession: true },
-  });
+  client ??= createBrowserClient(url, key);
   return client;
 }

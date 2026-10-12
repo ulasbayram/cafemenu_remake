@@ -1,12 +1,13 @@
 import Dashboard from "./dashboard";
+import { redirect } from "next/navigation";
+import { serverSupabase } from "@/lib/supabase-server";
+import { visibleEnterpriseExtensions } from "@/enterprise/server";
 export const dynamic = "force-dynamic";
 export default async function Page({
   searchParams,
 }: {
   searchParams: Promise<{ view?: string }>;
 }) {
-  // Client-side guard: the dashboard checks the Supabase session and
-  // redirects to /login itself (auth state lives in the browser).
   const { view } = await searchParams;
   const initialTab = [
     "overview",
@@ -28,5 +29,19 @@ export default async function Page({
         | "stats"
         | "settings")
     : "overview";
+  // Bare "/" routes enterprise users to their package workspace; the regular
+  // dashboard stays reachable via an explicit ?view= link.
+  if (!view) {
+    const {
+      data: { session },
+    } = await (await serverSupabase()).auth.getSession();
+    if (session) {
+      const packages = await visibleEnterpriseExtensions(
+        session.user.id,
+        session.access_token,
+      );
+      if (packages.length) redirect(packages[0].href);
+    }
+  }
   return <Dashboard initialTab={initialTab} />;
 }

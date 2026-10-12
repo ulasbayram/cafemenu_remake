@@ -284,7 +284,7 @@ export default function Dashboard({
     window.history.replaceState(
       null,
       "",
-      t === "overview" ? "/" : `/?view=${t}`,
+      t === "overview" ? "/?view=overview" : `/?view=${t}`,
     );
     setMobile(false);
     setError("");
