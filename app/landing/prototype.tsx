@@ -7,11 +7,7 @@ import {
   ArrowRight,
   Coffee,
   Check,
-  QrCode,
   Smartphone,
-  Palette,
-  ChartNoAxesCombined,
-  ClipboardList,
   Leaf,
   Store,
   Menu,
@@ -25,40 +21,11 @@ import {
   Mail,
 } from "lucide-react";
 import ItemLabels from "../item-labels";
+import Pricing from "./pricing";
+import ModuleOverview from "./module-overview";
+import FeatureShowcase from "./feature-showcase";
 import styles from "./prototype.module.css";
 
-const features = [
-  {
-    icon: Palette,
-    title: "Sizin menünüz. Sizin tarzınız.",
-    text: "Renklerinizi, logonuzu ve menü düzeninizi işletmenizin ruhuna göre seçin.",
-  },
-  {
-    icon: QrCode,
-    title: "Bir tarama kadar yakın.",
-    text: "QR kodunuzu masaya yerleştirin. Misafirleriniz uygulama indirmeden menünüze ulaşsın.",
-  },
-  {
-    icon: ClipboardList,
-    title: "Masadan size, doğrudan.",
-    text: "Masa QR’larından gelen siparişleri takip edin ve durumlarını tek yerden yönetin.",
-  },
-  {
-    icon: Leaf,
-    title: "İçerik belli. Seçim kolay.",
-    text: "Alerjenleri, beslenme tercihlerini ve ürün özelliklerini küçük etiketlerle gösterin.",
-  },
-  {
-    icon: ChartNoAxesCombined,
-    title: "Menünüzün nabzını tutun.",
-    text: "Ziyaretlerin günlere ve saatlere dağılımını görün. Verilere dokunarak yakından bakın.",
-  },
-  {
-    icon: Store,
-    title: "Birden fazla işletme, tek panel.",
-    text: "İşletmelerinizin menülerini, ürünlerini ve fiyatlarını aynı çalışma alanından düzenleyin.",
-  },
-];
 const demoItems = [
   {
     name: "Caffè Latte",
@@ -106,6 +73,7 @@ export default function LandingPrototype() {
   // bir sunucu endpoint'ine bağla. Şimdilik yalnızca UI prototipi:
   // e-posta gönderilmez, form bilgileri kaydedilmez.
   const [demoNotice, setDemoNotice] = useState("");
+  const [selectedPlan, setSelectedPlan] = useState("");
 
   return (
     <div
@@ -139,6 +107,12 @@ export default function LandingPrototype() {
           </a>
           <a href="#sorular" onClick={() => setMobileNav(false)}>
             Merak edilenler
+          </a>
+          <a href="#fiyatlandirma" onClick={() => setMobileNav(false)}>
+            Fiyatlandırma
+          </a>
+          <a href="#moduller" onClick={() => setMobileNav(false)}>
+            Modüller
           </a>
           <a href="#demo" onClick={() => setMobileNav(false)}>
             Demo
@@ -347,18 +321,7 @@ export default function LandingPrototype() {
               Siz de işletmenize.
             </p>
           </div>
-          <div className={styles.featureGrid}>
-            {features.map((feature) => (
-              <article key={feature.title}>
-                <span className={styles.featureIcon}>
-                  <feature.icon size={24} strokeWidth={1.5} />
-                </span>
-                <h3>{feature.title}</h3>
-                <p>{feature.text}</p>
-                <span className={styles.featureRule} />
-              </article>
-            ))}
-          </div>
+          <FeatureShowcase />
         </section>
         <section className={styles.how} id="nasil-calisir">
           <div className={styles.howIntro}>
@@ -402,6 +365,13 @@ export default function LandingPrototype() {
             ))}
           </div>
         </section>
+        <ModuleOverview />
+        <Pricing
+          onChoose={(plan) => {
+            setSelectedPlan(plan);
+            setDemoNotice("");
+          }}
+        />
         <section className={styles.demoSection} id="demo">
           <div className={styles.demoIntro}>
             <span className={styles.eyebrow}>BİRLİKTE BİR GÖZ ATALIM</span>
@@ -424,11 +394,17 @@ export default function LandingPrototype() {
             onSubmit={(event) => {
               event.preventDefault();
               setDemoNotice(
-                  "Demo talepleri yakında bu form üzerinden alınabilecek. Bilgileriniz şu anda gönderilmedi.",
+                "Demo talepleri yakında bu form üzerinden alınabilecek. Bilgileriniz şu anda gönderilmedi.",
               );
             }}
           >
             <h3>Demo görüşmesi talep edin</h3>
+            {selectedPlan && (
+              <p className={styles.planInquiry}>
+                İlgilendiğiniz paket: <strong>{selectedPlan}</strong>{" "}
+                <a href="#fiyatlandirma">Değiştir</a>
+              </p>
+            )}
             <label htmlFor="demo-email">
               E-posta adresiniz
               <input

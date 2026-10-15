@@ -554,51 +554,6 @@
   color: #8c9683;
   line-height: 1.9;
 }
-.featureGrid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 40px 45px;
-  margin-top: 55px;
-}
-.featureGrid article {
-  position: relative;
-  padding: 26px 25px 29px;
-  background: #ffffff5c;
-  border: 1px solid #e5e9da;
-  border-radius: 12px;
-}
-.featureIcon {
-  width: 43px;
-  height: 43px;
-  display: grid;
-  place-items: center;
-  background: #eaf0df;
-  color: #6e8a5c;
-  border-radius: 12px;
-  margin-bottom: 23px;
-}
-.featureGrid article:nth-child(2n) .featureIcon {
-  color: #968568;
-  background: #f2eee0;
-}
-.featureGrid h3 {
-  font-size: 15px;
-  font-weight: 650;
-  letter-spacing: -0.4px;
-  margin-bottom: 11px;
-}
-.featureGrid p {
-  color: #8b9481;
-  font-size: 13px;
-  line-height: 1.9;
-}
-.featureRule {
-  display: block;
-  width: 25px;
-  height: 2px;
-  margin-top: 24px;
-  background: #b6c7a0;
-}
 .how {
   display: grid;
   grid-template-columns: 0.9fr 1.1fr;
@@ -857,6 +812,22 @@
   font-weight: 600;
   margin-bottom: 2px;
 }
+.planInquiry {
+  margin: 0 0 20px;
+  font-size: 11px;
+  line-height: 1.8;
+  color: var(--landing-muted);
+}
+.planInquiry strong {
+  color: var(--landing-ink);
+  font-weight: 600;
+}
+.planInquiry a {
+  margin-left: 6px;
+  color: var(--landing-green);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .demoForm label {
   display: flex;
   flex-direction: column;
@@ -940,7 +911,6 @@
     .sectionHeading > p,
     .howIntro > p,
     .faq > div:first-child > p,
-    .featureGrid p,
     .steps p,
     .faq details > p,
     .demoIntro > p,
@@ -1057,24 +1027,6 @@
 }
 .landing[data-landing-theme="dark"] .strip > div {
   color: #b1c5a5;
-}
-.landing[data-landing-theme="dark"] .featureGrid article {
-  background: #18261c;
-  border-color: #30432d;
-}
-.landing[data-landing-theme="dark"] .featureIcon {
-  background: #283c26;
-  color: #aac698;
-}
-.landing[data-landing-theme="dark"]
-  .featureGrid
-  article:nth-child(2n)
-  .featureIcon {
-  background: #353a28;
-  color: #c3bd91;
-}
-.landing[data-landing-theme="dark"] .featureRule {
-  background: #678657;
 }
 .landing[data-landing-theme="dark"] :is(.how, .steps > div, .faq details) {
   border-color: #2e422b;
@@ -1217,9 +1169,6 @@
   .palette {
     right: -12px;
   }
-  .featureGrid {
-    gap: 20px;
-  }
   .features,
   .how,
   .faq {
@@ -1279,9 +1228,6 @@
   }
   .palette {
     right: -3px;
-  }
-  .featureGrid {
-    grid-template-columns: repeat(2, 1fr);
   }
   .features,
   .faq {
@@ -1360,21 +1306,10 @@
   .palette > span {
     font-size: 8px;
   }
-  .featureGrid {
-    grid-template-columns: 1fr;
-    gap: 13px;
-    margin-top: 30px;
-  }
   .features,
   .how,
   .faq {
     margin-inline: 24px;
-  }
-  .featureGrid article {
-    padding: 22px;
-  }
-  .featureIcon {
-    margin-bottom: 17px;
   }
   .sectionHeading h2,
   .how h2,
