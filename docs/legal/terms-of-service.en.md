@@ -3,7 +3,7 @@
 **Service provider:** Hibrit  
 **Application:** Fincan  
 **Website:** https://fincan.hibrit.dev  
-**Last updated:** 10 October 2026  
+**Last updated:** 17 October 2026  
 **Contact address:** ____________________
 
 ## 1. Scope and parties

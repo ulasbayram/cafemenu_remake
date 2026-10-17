@@ -22,7 +22,8 @@ Hizmet sağlayıcı adı kullanıcı tarafından **Hibrit**, ürün adı **Finca
 | E-posta ve şifre / giriş bağlantısı | E-posta, şifre veya OTP bağlantısı Supabase Auth üzerinden işleniyor | `app/login/auth-form.tsx` |
 | Profil adı | `full_name` veya `name` yönetim ekranında kullanılıyor | `app/dashboard.tsx` |
 | Google profil fotoğrafı | Arayüzde Google avatarı kullanılmıyor; sağlayıcının kimlik metadatasında bulunması mümkün | `app/dashboard.tsx`, Supabase Google Auth belgesi |
-| Oturum | PKCE ve kalıcı Supabase oturumu; localStorage; API'ye Bearer token gönderimi | `lib/supabase-browser.ts`, `lib/client-api.ts`, `lib/jwt.ts` |
+| Oturum | PKCE ve kalıcı Supabase oturumu; oturum **birinci taraf çerezde** tutuluyor (`@supabase/ssr` `createBrowserClient`; `httpOnly:false`, `sameSite:lax`, yol `/`, 400 gün, base64url kodlama). API çağrılarında ayrıca `Authorization: Bearer` başlığı gönderilir | `lib/supabase-browser.ts`, `lib/client-api.ts`, `lib/jwt.ts` |
+| Sayfa erişim denetimi | Korumalı sayfalar sunucuda oturum çerezini okuyarak yönlendirme yapar; oturum yoksa `/login`'e gider | `proxy.ts`, `lib/supabase-server.ts` |
 | Yönetici erişimi | `admins` tablosuna göre yetki; kullanıcı e-postası, kimliği, son giriş ve kayıt zamanı; işletme inceleme/düzenleme | `lib/jwt.ts`, `app/api/admin/users/route.ts`, `app/api/admin/cafes/route.ts`, `app/api/admin/cafes/[id]/route.ts` |
 | İşletme ve menü | İşletme, sahibi, konum açıklaması, koordinatlar, bağlantılar, tasarım, ürünler, fiyatlar ve etiketler | `lib/menu.ts`, `lib/social-links.ts`, `app/api/cafes/[id]/route.ts` |
 | Herkese açık koordinat ihtimali | İşletmenin `data` alanı yayımlanmış menünün istemci verisine yayılıyor; `lat/lng` filtrelenmiyor | `app/menu/[slug]/page.tsx` |
@@ -73,6 +74,7 @@ Google verilerinin nasıl alındığı, kullanıldığı, saklandığı ve payla
 
 ## İnceleme notları
 
+- Oturum, 10 Ekim 2026'daki ilk incelemeden sonra **localStorage'dan birinci taraf çereze** taşındı (`@supabase/ssr`). Ziyaretçi kimliği ve tema anahtarları hâlâ localStorage'dadır; bu nedenle politika metni iki mekanizmayı ayrı anlatır. Çerez, kullanıcı giriş yaptığında oluşur; giriş yapmayan ziyaretçiye çerez yazılmaz.
 - README'deki JWKS, iki yönetici/env izin listesi ve secret key'in kullanılmadığı açıklamaları güncel kodla uyuşmuyor. Kod `auth.getUser`, `admins` tablosu ve service client kullanıyor; metinler bunları esas alır.
 - Sadece Google profil verisi toplanıyormuş gibi bir politika hazırlanmadı: ziyaret, sipariş, konum, herkese açık içerik, yönetici erişimi ve tarayıcı depolaması birlikte açıklandı.
 - Başvurunun en geç 30 günde sonuçlandırılması hukuki yükümlülüğü, teknik olarak bütün yedeklerin aynı anda silineceği vaadi değildir. [KVKK başvuru süreleri](https://www.kvkk.gov.tr/Icerik/5358/Kamuoyu-Duyurusu).

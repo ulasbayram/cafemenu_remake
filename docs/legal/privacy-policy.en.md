@@ -3,7 +3,7 @@
 **Service provider:** Hibrit  
 **Application:** Fincan  
 **Website:** https://fincan.hibrit.dev  
-**Last updated:** 10 October 2026  
+**Last updated:** 17 October 2026  
 **Contact address for privacy and personal data requests:** ____________________
 
 ## 1. Scope and data processing roles
@@ -64,24 +64,24 @@ When you access Fincan, Google, Supabase, or Cloudflare may process your IP addr
 
 | Data in the browser | Purpose | Duration and controls |
 | --- | --- | --- |
-| Supabase session and authentication data | Maintaining sessions, access and refresh tokens, and completing sign-in; provider session data may also be present | Token validity depends on session settings. Local records may be removed by signing out or clearing site data; sessions on all devices may not end simultaneously. |
-| `fincan-visitor` | Counting repeat menu visits and limiting order requests | The application does not assign an automatic expiry date; the identifier may remain until site data is cleared or the browser removes it. |
-| `fincan-theme`, `fincan-menu-theme` | Remembering light/dark appearance preferences | The application does not assign an automatic expiry date; preferences can be changed or site data cleared. |
+| Supabase session cookie | Maintaining sessions, access and refresh tokens, and completing sign-in; provider session data may also be present. It is written only after you sign in; no such cookie is created for a menu visitor who is not signed in | A first-party cookie (`sameSite=lax`, path `/`); valid for approximately 400 days. It may be removed by signing out or clearing site data; sessions on all devices may not end simultaneously. |
+| `fincan-visitor` (local storage) | Counting repeat menu visits and limiting order requests | The application does not assign an automatic expiry date; the identifier may remain until site data is cleared or the browser removes it. |
+| `fincan-theme`, `fincan-menu-theme` (local storage) | Remembering light/dark appearance preferences | The application does not assign an automatic expiry date; preferences can be changed or site data cleared. |
 | Cart and selected table | Preparing an order in the open menu | Held in the page's working memory in the current application; no persistent cart record is created. |
 
-Local storage is technically different from cookies; both allow information to be held in the browser. Google may use its own session mechanisms during Google sign-in. The current Fincan application code does not include advertising cookies, Google Analytics, advertising pixels, or third-party behavioural tracking integrations. Menu visits are measured using the application's own statistics system described above.
+The session cookie is **strictly necessary** for the service to function (without it you cannot sign in and the management screens cannot open), so it falls under the strictly-necessary exemption in the rules on storing information in the browser; no separate cookie consent is requested, and the cookie is created only by the sign-in you initiate. The visitor identifier and theme preferences are kept in local storage; local storage is not the same mechanism as cookies and, unlike cookies, is not sent to the server with every request. Google may use its own session mechanisms during Google sign-in. The current Fincan application code does not include advertising cookies, Google Analytics, advertising pixels, or third-party behavioural tracking integrations. Menu visits are measured using the application's own statistics system described above.
 
 You can clear site data through your browser settings. This may remove your session and preferences and cause a new visitor identifier to be created on your next visit; it does not automatically delete records previously created on the server. The current interface does not provide a separate preference switch to disable visit counting.
 
 ## 5. Purposes and legal bases
 
-Your data is processed to create and authenticate accounts, provide business and menu services, forward orders to businesses, provide statistics, reduce misuse, provide technical support, and comply with legal obligations. Data is collected electronically through your forms and uploads, Google authentication, browser local storage, application API requests, and infrastructure providers.
+Your data is processed to create and authenticate accounts, provide business and menu services, forward orders to businesses, provide statistics, reduce misuse, provide technical support, and comply with legal obligations. Data is collected electronically through your forms and uploads, Google authentication, the browser session cookie and local storage, application API requests, and infrastructure providers.
 
 The references below are to Türkiye's Personal Data Protection Law No. 6698, referred to as “KVKK.”
 
 | Processing activity | Applicable legal basis |
 | --- | --- |
-| Accounts, sessions, business management, and providing the service requested by the user | Processing necessary for entering into or performing a contract; KVKK Article 5/2(c). |
+| Accounts, sessions, business management, and providing the service requested by the user | Processing necessary for entering into or performing a contract; KVKK Article 5/2(c). The strictly-necessary session cookie falls within this basis and does not require separate cookie consent. |
 | Forwarding orders and the business's management of orders | Processing necessary for entering into or performing the relevant contract; the parties' data processing roles are also taken into account. |
 | Security, authorization checks, and prevention of misuse | Legitimate interests, provided that fundamental rights and freedoms are not adversely affected; KVKK Article 5/2(f). |
 | Visit statistics | Legitimate interest conditions and rules concerning storage of information in the browser must be assessed separately; prior explicit consent is obtained where required. |

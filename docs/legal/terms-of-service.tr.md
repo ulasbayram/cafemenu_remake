@@ -3,7 +3,7 @@
 **Hizmet sağlayıcı:** Hibrit  
 **Uygulama:** Fincan  
 **Web sitesi:** https://fincan.hibrit.dev  
-**Son güncelleme:** 10 Ekim 2026  
+**Son güncelleme:** 17 Ekim 2026  
 **İletişim adresi:** ____________________
 
 ## 1. Kapsam ve taraflar

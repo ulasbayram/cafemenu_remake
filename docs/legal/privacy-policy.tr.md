@@ -3,7 +3,7 @@
 **Hizmet sağlayıcı:** Hibrit  
 **Uygulama:** Fincan  
 **Web sitesi:** https://fincan.hibrit.dev  
-**Son güncelleme:** 10 Ekim 2026  
+**Son güncelleme:** 17 Ekim 2026  
 **Gizlilik ve kişisel veri başvuruları için iletişim adresi:** ____________________
 
 ## 1. Kapsam ve veri işleme rolleri
@@ -64,22 +64,22 @@ Fincan'a erişim sırasında IP adresi, istek zamanı, istek adresi ve bağlant�
 
 | Tarayıcıdaki veri | Kullanım amacı | Süre ve kontrol |
 | --- | --- | --- |
-| Supabase oturum ve doğrulama verileri | Oturumu sürdürme, erişim ve yenileme tokenları, giriş akışını tamamlama; sağlayıcı oturum verileri de bulunabilir | Tokenların geçerliliği oturum ayarlarına bağlıdır. Yerel kayıtlar oturum kapatma veya site verilerini temizleme ile kaldırılabilir; tüm cihaz oturumları aynı anda sona ermeyebilir. |
-| `fincan-visitor` | Tekrar eden menü ziyaretlerini sayma ve sipariş isteklerini sınırlandırma | Uygulama tarafından otomatik son kullanma süresi atanmaz; site verileri temizlenene veya tarayıcı kaldırana kadar kalabilir. |
-| `fincan-theme`, `fincan-menu-theme` | Açık/koyu görünüm tercihini hatırlama | Uygulama tarafından otomatik son kullanma süresi atanmaz; tercih değiştirilebilir veya site verileri temizlenebilir. |
+| Supabase oturum çerezi | Oturumu sürdürme, erişim ve yenileme tokenları, giriş akışını tamamlama; sağlayıcı oturum verileri de bulunabilir. Yalnızca siz giriş yaptıktan sonra yazılır; giriş yapmayan menü ziyaretçisine bu çerez oluşturulmaz | Birinci taraf çerezdir (`sameSite=lax`, yol `/`); yaklaşık 400 gün geçerli olabilir. Oturum kapatma veya site verilerini temizleme ile kaldırılabilir; tüm cihaz oturumları aynı anda sona ermeyebilir. |
+| `fincan-visitor` (yerel depolama) | Tekrar eden menü ziyaretlerini sayma ve sipariş isteklerini sınırlandırma | Uygulama tarafından otomatik son kullanma süresi atanmaz; site verileri temizlenene veya tarayıcı kaldırana kadar kalabilir. |
+| `fincan-theme`, `fincan-menu-theme` (yerel depolama) | Açık/koyu görünüm tercihini hatırlama | Uygulama tarafından otomatik son kullanma süresi atanmaz; tercih değiştirilebilir veya site verileri temizlenebilir. |
 | Sepet ve seçilen masa | Açık menüde sipariş hazırlama | Mevcut uygulamada sayfanın çalışma belleğinde tutulur; kalıcı sepet kaydı oluşturulmaz. |
 
-Yerel depolama, çerezle aynı teknik mekanizma değildir; ikisi de tarayıcıda bilgi tutulmasını sağlar. Google ile girişte Google kendi oturum mekanizmalarını kullanabilir. Mevcut Fincan uygulama kodunda reklam çerezi, Google Analytics, reklam pikseli veya üçüncü taraf davranış takibi entegrasyonu bulunmaz. Menü ziyaretleri için yukarıda açıklanan kendi istatistik sistemi kullanılır.
+Oturum çerezi, hizmetin çalışması için **zorunlu** olduğundan (çerez olmadan giriş yapılamaz ve yönetim ekranları açılamaz) tarayıcıda bilgi depolamaya ilişkin kurallar kapsamındaki zorunlu istisnaya girer; bu nedenle ayrı bir çerez izni istenmez ve çerez yalnızca sizin başlattığınız giriş işlemiyle oluşur. Ziyaretçi kimliği ve tema tercihleri ise yerel depolamada tutulur; yerel depolama çerezle aynı mekanizma değildir ve çerezler gibi her istekle sunucuya gönderilmez. Google ile girişte Google kendi oturum mekanizmalarını kullanabilir. Mevcut Fincan uygulama kodunda reklam çerezi, Google Analytics, reklam pikseli veya üçüncü taraf davranış takibi entegrasyonu bulunmaz. Menü ziyaretleri için yukarıda açıklanan kendi istatistik sistemi kullanılır.
 
 Tarayıcı ayarlarından site verilerini temizleyebilirsiniz. Bu işlem oturumunuzu ve tercihlerinizi kaldırabilir ve sonraki ziyarette yeni ziyaretçi kimliği oluşmasına yol açabilir; daha önce sunucuda oluşmuş kayıtları kendiliğinden silmez. Mevcut arayüzde ziyaret sayımını kapatan ayrı bir tercih anahtarı bulunmaz.
 
 ## 5. Amaçlar ve hukuki sebepler
 
-Verileriniz hesap oluşturmak ve doğrulamak, işletme ve menü hizmetini sunmak, siparişi işletmeye iletmek, istatistik sağlamak, kötüye kullanımı azaltmak, teknik destek vermek ve hukuki yükümlülükleri yerine getirmek için işlenir. Toplama; sizin form ve yüklemeleriniz, Google kimlik doğrulaması, tarayıcıdaki yerel depolama, uygulama API istekleri ve altyapı sağlayıcıları üzerinden elektronik olarak gerçekleşir.
+Verileriniz hesap oluşturmak ve doğrulamak, işletme ve menü hizmetini sunmak, siparişi işletmeye iletmek, istatistik sağlamak, kötüye kullanımı azaltmak, teknik destek vermek ve hukuki yükümlülükleri yerine getirmek için işlenir. Toplama; sizin form ve yüklemeleriniz, Google kimlik doğrulaması, tarayıcıdaki oturum çerezi ve yerel depolama, uygulama API istekleri ve altyapı sağlayıcıları üzerinden elektronik olarak gerçekleşir.
 
 | İşlem | Uygulanabilir hukuki sebep |
 | --- | --- |
-| Hesap, oturum, işletme yönetimi ve kullanıcının talep ettiği hizmetin sunulması | Sözleşmenin kurulması veya ifası için gerekli işleme; KVKK m. 5/2(c). |
+| Hesap, oturum, işletme yönetimi ve kullanıcının talep ettiği hizmetin sunulması | Sözleşmenin kurulması veya ifası için gerekli işleme; KVKK m. 5/2(c). Zorunlu oturum çerezi bu kapsamdadır ve ayrı çerez izni gerektirmez. |
 | Siparişin iletilmesi ve işletmenin siparişi yönetmesi | İlgili sözleşmenin kurulması veya ifası için gerekli işleme; tarafların veri işleme rolleri ayrıca dikkate alınır. |
 | Güvenlik, yetki kontrolü ve kötüye kullanımın önlenmesi | Temel hak ve özgürlüklere zarar vermemek şartıyla meşru menfaat; KVKK m. 5/2(f). |
 | Ziyaret istatistikleri | Meşru menfaat şartları ve tarayıcıda bilgi depolamaya ilişkin kurallar ayrıca değerlendirilir; gerekli hâllerde önceden açık rıza alınır. |

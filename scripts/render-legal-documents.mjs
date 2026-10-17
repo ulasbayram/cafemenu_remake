@@ -57,7 +57,7 @@ for (const language of ["tr", "en"]) {
     ? (other === "privacy-policy" ? "Privacy Policy" : "Terms of Service")
     : (other === "privacy-policy" ? "Gizlilik Politikası" : "Kullanım Koşulları");
   const navigationLabel = language === "en" ? "Legal pages" : "Yasal sayfalar";
-  const updatedLabel = language === "en" ? "Last updated: 10 October 2026" : "Son güncelleme: 10 Ekim 2026";
+  const updatedLabel = language === "en" ? "Last updated: 17 October 2026" : "Son güncelleme: 17 Ekim 2026";
   const html = `<!doctype html>\n<html lang="${language}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escape(title)} · Hibrit</title><style>${css}</style></head><body><main><nav aria-label="${navigationLabel}"><a href="https://fincan.hibrit.dev">Fincan</a><a href="${other}.${language}.html">${otherLabel}</a></nav>${render(source)}<footer>Fincan · Hibrit · ${updatedLabel}</footer></main></body></html>\n`;
   writeFileSync(file.replace(/\.md$/, ".html"), html, "utf8");
   console.log(`Generated docs/legal/${name}.${language}.html`);
