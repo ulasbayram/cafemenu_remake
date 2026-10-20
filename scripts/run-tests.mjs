@@ -15,12 +15,15 @@ const suites = [
   "enterprise-foundation-test.mjs",
   "admin-access-test.mjs",
   "erp-test.mjs",
+  "settlement-test.mjs",
 ];
 
 const results = [];
 for (const suite of suites) {
   const path = fileURLToPath(new URL(suite, import.meta.url));
-  const run = spawnSync(process.execPath, [path], { stdio: ["ignore", "pipe", "pipe"] });
+  const run = spawnSync(process.execPath, [path], {
+    stdio: ["ignore", "pipe", "pipe"],
+  });
   const ok = run.status === 0;
   results.push({ suite, ok });
   const output = `${run.stdout ?? ""}${run.stderr ?? ""}`.trim();

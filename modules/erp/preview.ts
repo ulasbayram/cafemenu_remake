@@ -45,6 +45,7 @@ export function erpPreview(): ErpData {
         total: qty * 145,
         material_cost: qty * 24.4,
         cost_complete: true,
+        payment_method: index % 2 === 0 ? ("card" as const) : ("cash" as const),
         lines: [
           {
             id: "latte",

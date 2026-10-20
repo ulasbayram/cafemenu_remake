@@ -1,4 +1,6 @@
 "use client";
+import PaymentSummary from "./payment-summary";
+import { paymentMethodLabel } from "@/lib/orders";
 import {
   useEffect,
   useState,
@@ -933,11 +935,13 @@ export default function ErpDashboard({
                             : "tahmini kâr"}
                         </span>
                       </div>
+                      <PaymentSummary sales={report.daySales} />
                       <div className={styles.tableWrap}>
                         <table>
                           <thead>
                             <tr>
                               <th>Ödeme saati</th>
+                              <th>Yöntem</th>
                               <th>Ürünler</th>
                               <th>Tutar</th>
                             </tr>
@@ -954,6 +958,11 @@ export default function ErpDashboard({
                                       minute: "2-digit",
                                     },
                                   )}
+                                </td>
+                                <td>
+                                  {s.payment_method
+                                    ? paymentMethodLabel[s.payment_method]
+                                    : "Belirtilmemiş"}
                                 </td>
                                 <td>
                                   {s.lines

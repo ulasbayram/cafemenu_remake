@@ -16,6 +16,12 @@ import {
 } from "lucide-react";
 import { socialFields, normalizeSocialLink } from "@/lib/social-links";
 import { menuCategories, type Cafe, type Item } from "@/lib/menu";
+import {
+  itemName,
+  itemDescription,
+  categoryName,
+  type MenuLanguage,
+} from "@/lib/menu-language";
 import ItemLabels from "./item-labels";
 import { logoSurfaceFromPixels } from "@/lib/logo";
 export type Rates = {
@@ -36,8 +42,10 @@ export default function MenuView({
   onEdit,
   blockScope = "all",
   onAddToOrder,
+  language = "tr",
 }: {
   cafe: Cafe;
+  language?: MenuLanguage;
   rates?: Rates | null;
   currency?: string;
   onSelectBlock?: (block: MenuBlock) => void;
@@ -46,6 +54,7 @@ export default function MenuView({
   blockScope?: "all" | "design";
   onAddToOrder?: (item: Item) => void;
 }) {
+  const text = (tr: string, en: string) => (language === "en" ? en : tr);
   const editable = !!(onSelectBlock || onEdit),
     contentEditable = !!onEdit || (!!onSelectBlock && blockScope === "all"),
     categories = menuCategories(cafe).filter(
@@ -176,7 +185,11 @@ export default function MenuView({
         </span>
         <small>COFFEE & GOOD MOMENTS</small>
         <h1>{cafe.name}</h1>
-        <p>{cafe.subtitle}</p>
+        <p>
+          {language === "en" && cafe.subtitleEn
+            ? cafe.subtitleEn
+            : cafe.subtitle}
+        </p>
         {cafe.location && (
           <span className="menu-location">
             <MapPin size={12} />
@@ -216,7 +229,7 @@ export default function MenuView({
           className={active === "Tümü" ? "selected" : ""}
           onClick={() => setSelected("Tümü")}
         >
-          Tümü
+          {text("Tümü", "All")}
         </button>
         {categories.map((c) => (
           <button
@@ -227,7 +240,7 @@ export default function MenuView({
               if (contentEditable) onSelectBlock?.(`category:${c}`);
             }}
           >
-            {c}
+            {categoryName(cafe, c, language)}
           </button>
         ))}
       </div>
@@ -240,7 +253,7 @@ export default function MenuView({
                 className={blockClass(`category:${cat}`)}
                 {...selectProps(`category:${cat}`, `${cat} kategorisi`)}
               >
-                {cat}
+                {categoryName(cafe, cat, language)}
                 <span>
                   {
                     cafe.items.filter(
@@ -277,7 +290,10 @@ export default function MenuView({
                       <span className="block-label">Ürün</span>
                     )}
                     <span>
-                      <strong>{item.name || "Yeni ürün"}</strong>
+                      <strong>
+                        {itemName(item, language) ||
+                          text("Yeni ürün", "New item")}
+                      </strong>
                       {item.photo && (
                         <img
                           className="item-photo"
@@ -286,8 +302,8 @@ export default function MenuView({
                           loading="lazy"
                         />
                       )}
-                      <small>{item.description}</small>
-                      <ItemLabels item={item} />
+                      <small>{itemDescription(item, language)}</small>
+                      <ItemLabels item={item} language={language} />
                       {!item.available && <em>Menüde gizli</em>}
                     </span>
                     <b>
@@ -314,9 +330,13 @@ export default function MenuView({
                         type="button"
                         className="menu-order-add"
                         onClick={() => onAddToOrder(item)}
-                        aria-label={`${item.name} ürününü siparişe ekle`}
+                        aria-label={
+                          language === "en"
+                            ? `Add ${itemName(item, language)} to order`
+                            : `${item.name} ürününü siparişe ekle`
+                        }
                       >
-                        <Plus size={15} /> Ekle
+                        <Plus size={15} /> {text("Ekle", "Add")}
                       </button>
                     )}
                   </ItemTag>
@@ -326,7 +346,12 @@ export default function MenuView({
         {!cafe.items.length && (
           <div className="empty-menu">
             <Leaf />
-            <p>Menünüze ilk lezzeti ekleyin.</p>
+            <p>
+              {text(
+                "Menünüze ilk lezzeti ekleyin.",
+                "Add the first item to your menu.",
+              )}
+            </p>
           </div>
         )}
       </div>
@@ -336,15 +361,22 @@ export default function MenuView({
           aria-label="İşletmeyi değerlendirin"
         >
           <Star size={22} aria-hidden="true" />
-          <strong>Deneyiminizi bizimle paylaşın</strong>
-          <p>Google’da yorum bırakarak işletmemizi değerlendirebilirsiniz.</p>
+          <strong>
+            {text("Deneyiminizi bizimle paylaşın", "Share your experience")}
+          </strong>
+          <p>
+            {text(
+              "Google’da yorum bırakarak işletmemizi değerlendirebilirsiniz.",
+              "Leave a review for our business on Google.",
+            )}
+          </p>
           <a
             href={reviewLink.href}
             target="_blank"
             rel="noopener noreferrer"
             aria-label={`${cafe.name} için Google’da değerlendirme yap (yeni sekmede açılır)`}
           >
-            Google’da değerlendirin{" "}
+            {text("Google’da değerlendirin", "Review on Google")}{" "}
             <ExternalLink size={15} aria-hidden="true" />
           </a>
         </section>
@@ -354,7 +386,7 @@ export default function MenuView({
         {...selectProps("footer", "Fincan imzası")}
       >
         <Coffee size={14} />
-        <span>fincan ile hazırlandı</span>
+        <span>{text("fincan ile hazırlandı", "made with fincan")}</span>
         {onSelectBlock && <LockKeyhole size={12} />}
       </footer>
     </div>

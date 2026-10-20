@@ -1,4 +1,6 @@
 "use client";
+import OrderSettlement from "./order-settlement";
+import { paymentMethodLabel } from "@/lib/orders";
 import AppSelect from "@/components/app-select";
 
 import { useEffect, useMemo, useState } from "react";
@@ -268,15 +270,17 @@ export default function OrdersManager({ cafes, onError, onToast }: Props) {
                   <li key={item.id}>
                     <span>
                       <b>{item.quantity}×</b> {item.name}
+                      {!!item.complimentaryQuantity && (
+                        <small> · {item.complimentaryQuantity} ikram</small>
+                      )}
                     </span>
                     <strong>
-                      {(item.unitPrice * item.quantity).toLocaleString(
-                        "tr-TR",
-                        {
-                          style: "currency",
-                          currency: "TRY",
-                        },
-                      )}
+                      {(
+                        item.netTotal ?? item.unitPrice * item.quantity
+                      ).toLocaleString("tr-TR", {
+                        style: "currency",
+                        currency: "TRY",
+                      })}
                     </strong>
                   </li>
                 ))}
@@ -291,6 +295,11 @@ export default function OrdersManager({ cafes, onError, onToast }: Props) {
                 </strong>
               </footer>
 
+              {order.paymentMethod && (
+                <p className="muted small-text">
+                  {paymentMethodLabel[order.paymentMethod]}
+                </p>
+              )}
               {order.status !== "completed" && (
                 <button
                   className="btn primary full"
@@ -310,7 +319,7 @@ export default function OrdersManager({ cafes, onError, onToast }: Props) {
                   )}
                   {order.status === "waiting"
                     ? "Teslim edildi olarak işaretle"
-                    : "Ödeme alındı · Tamamla"}
+                    : "Ödeme ve indirim"}
                 </button>
               )}
             </article>
@@ -318,53 +327,14 @@ export default function OrdersManager({ cafes, onError, onToast }: Props) {
         </div>
       )}
       {confirming && (
-        <div
-          className="modal-backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Siparişi tamamla"
-          onClick={() => setConfirming(null)}
-        >
-          <div
-            className="modal-card"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <h2>Siparişi tamamla?</h2>
-            <p>
-              <strong>Masa {confirming.tableNo}</strong> ·{" "}
-              {confirming.items.reduce((sum, line) => sum + line.quantity, 0)}{" "}
-              ürün ·{" "}
-              {confirming.total.toLocaleString("tr-TR", {
-                style: "currency",
-                currency: "TRY",
-              })}
-            </p>
-            <p className="muted small-text">
-              Ödeme alındıysa onaylayın. Tamamlanan sipariş listeden kalkar.
-            </p>
-            <div className="heading-actions">
-              <button
-                className="btn"
-                onClick={() => setConfirming(null)}
-                disabled={updating === confirming.id}
-              >
-                Vazgeç
-              </button>
-              <button
-                className="btn primary"
-                disabled={updating === confirming.id}
-                onClick={() => advance(confirming)}
-              >
-                {updating === confirming.id ? (
-                  <LoaderCircle className="spin" size={16} />
-                ) : (
-                  <CircleDollarSign size={16} />
-                )}{" "}
-                Evet, tamamla
-              </button>
-            </div>
-          </div>
-        </div>
+        <OrderSettlement
+          order={confirming}
+          close={() => setConfirming(null)}
+          onSaved={() => {
+            void refresh();
+            onToast("Sipariş güncellendi.");
+          }}
+        />
       )}
     </section>
   );

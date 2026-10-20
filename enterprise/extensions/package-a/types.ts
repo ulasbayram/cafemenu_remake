@@ -11,6 +11,8 @@ export type EnterpriseOrder = {
   cafe: string;
   table: number;
   total: number;
+  paymentMethod?: "cash" | "card" | null;
+  receiptDiscount?: number;
   status: "waiting" | "delivered" | "completed";
   createdAt: string;
   updatedAt: string;

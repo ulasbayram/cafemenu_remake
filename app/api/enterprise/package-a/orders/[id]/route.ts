@@ -1,7 +1,7 @@
 import { svc } from "@/db";
 import { asUser, owner, userJwt, fail, sameOrigin } from "@/lib/server";
 import type { OrderLine } from "@/lib/orders";
-import { orderTotal } from "@/lib/orders";
+import { priceOrder } from "@/lib/orders";
 import type { Item } from "@/lib/menu";
 import { enterpriseAssignment } from "@/enterprise/server";
 import {
@@ -47,7 +47,7 @@ export async function PATCH(
     const client = asUser(userJwt(request));
     const { data: current, error: readError } = await client
       .from("orders")
-      .select("id, cafe, status, items, updated_at")
+      .select("id, cafe, status, items, receipt_discount, updated_at")
       .eq("id", id)
       .maybeSingle();
     if (readError) throw readError;
@@ -90,12 +90,24 @@ export async function PATCH(
         { status: 409 },
       );
     }
+    let priced;
+    try {
+      priced = priceOrder(lines, Number(current.receipt_discount ?? 0));
+    } catch {
+      return Response.json(
+        {
+          error:
+            "Adet/fiyat değişikliğinden önce siparişin indirimlerini düzenleyin.",
+        },
+        { status: 400 },
+      );
+    }
     const { data: updated, error: updateError } = await svc()
       .from("orders")
       .update({
         table_no: input.table,
-        items: lines,
-        total: orderTotal(lines),
+        items: priced.items,
+        total: priced.total,
         status: input.status,
       })
       .eq("id", id)

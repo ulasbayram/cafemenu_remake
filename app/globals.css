@@ -1,4 +1,114 @@
 @import "tailwindcss";
+.wifi-settings {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 20px 0;
+}
+.wifi-settings legend {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0 6px;
+}
+.wifi-settings label {
+  margin-bottom: 12px;
+}
+.wifi-settings p {
+  margin: 8px 0 0;
+}
+.translation-fields {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px;
+  margin: 18px 0;
+}
+.translation-fields summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+.translation-fields[open] summary {
+  margin-bottom: 18px;
+}
+.menu-language {
+  display: flex;
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  padding: 3px;
+  border-radius: 9px;
+  gap: 2px;
+}
+.menu-language button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 11px;
+  padding: 7px 9px;
+  border-radius: 6px;
+  min-height: 32px;
+}
+.menu-language button[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--public-brand) 25%, transparent);
+  font-weight: 700;
+}
+.menu-wifi {
+  margin: 16px auto;
+  padding: 18px 20px;
+  max-width: 720px;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--public-brand) 7%, transparent);
+  font-size: 13px;
+}
+.menu-wifi > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.menu-wifi p,
+.menu-wifi small {
+  font-size: 11px;
+  line-height: 1.8;
+  margin: 10px 0 0;
+  opacity: 0.8;
+}
+.menu-wifi-password {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.menu-wifi-password code {
+  flex: 1;
+  overflow-wrap: anywhere;
+  min-width: 0;
+  user-select: text;
+}
+.menu-wifi button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+}
+@media (max-width: 500px) {
+  .currency-bar {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .public-menu-controls {
+    flex-wrap: wrap;
+  }
+  .menu-wifi {
+    margin: 14px 16px;
+    padding: 15px;
+  }
+  .order-success .menu-wifi {
+    margin-inline: 0;
+  }
+}
 .orders-live-status {
   display: flex;
   align-items: center;

@@ -1,4 +1,6 @@
 "use client";
+import MenuWifi from "./menu-wifi";
+import { itemName, type MenuLanguage } from "@/lib/menu-language";
 import AppSelect from "@/components/app-select";
 import { useEffect, useState, type CSSProperties } from "react";
 import {
@@ -36,6 +38,9 @@ export default function PublicMenu({
     [dailyCode, setDailyCode] = useState(""),
     [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null),
     [pickedTable, setPickedTable] = useState<number | null>(null);
+  const [language, setLanguage] = useState<MenuLanguage>("tr");
+  const [revealedWifi, setRevealedWifi] = useState<Cafe["wifi"]>();
+  const text = (tr: string, en: string) => (language === "en" ? en : tr);
   const { theme, toggleTheme } = useMenuTheme(cafe.defaultTheme);
   // Token modes: table comes from the scanned QR URL. Open mode: the guest
   // picks it (session-only — never persisted).
@@ -106,9 +111,11 @@ export default function PublicMenu({
       const result = (await response.json().catch(() => ({}))) as {
         id?: string;
         error?: string;
+        wifi?: Cafe["wifi"];
       };
       if (!response.ok)
         throw new Error(result.error || "Sipariş gönderilemedi.");
+      if (result.wifi) setRevealedWifi(result.wifi);
       setCart({});
       setSentOrder(result.id?.slice(0, 8).toUpperCase() || "ALINDI");
     } catch (error) {
@@ -161,6 +168,7 @@ export default function PublicMenu({
   return (
     <main
       className="public-shell"
+      lang={language}
       style={
         {
           "--public-brand": cafe.accent,
@@ -171,8 +179,28 @@ export default function PublicMenu({
       }
     >
       <div className="currency-bar">
-        <span>Menü / Menu</span>
+        <span>{text("Menü", "Menu")}</span>
         <div className="public-menu-controls">
+          <div
+            className="menu-language"
+            role="group"
+            aria-label="Dil / Language"
+          >
+            <button
+              type="button"
+              aria-pressed={language === "tr"}
+              onClick={() => setLanguage("tr")}
+            >
+              TR
+            </button>
+            <button
+              type="button"
+              aria-pressed={language === "en"}
+              onClick={() => setLanguage("en")}
+            >
+              EN
+            </button>
+          </div>
           <button
             className="public-theme-toggle"
             onClick={toggleTheme}
@@ -190,7 +218,7 @@ export default function PublicMenu({
             {theme === "dark" ? <Sun size={19} /> : <Moon size={19} />}
           </button>
           <label>
-            Currency{" "}
+            {text("Para birimi", "Currency")}{" "}
             <AppSelect
               theme="customer"
               value={currency}
@@ -209,14 +237,21 @@ export default function PublicMenu({
       </div>
       {orderEnabled && orderMode !== "open" && (
         <div className="table-order-banner">
-          <span>Masa {effectiveTable}</span>
-          <strong>Masadan sipariş verebilirsiniz</strong>
+          <span>
+            {text("Masa", "Table")} {effectiveTable}
+          </span>
+          <strong>
+            {text(
+              "Masadan sipariş verebilirsiniz",
+              "You can order from your table",
+            )}
+          </strong>
         </div>
       )}
       {orderMode === "open" && (cafe.tableCount ?? 0) > 0 && (
         <div className="table-order-banner table-picker-banner">
           <label>
-            Masa numaranız
+            {text("Masa numaranız", "Your table number")}
             <AppSelect
               theme="customer"
               value={pickedTable ?? ""}
@@ -224,26 +259,34 @@ export default function PublicMenu({
                 setPickedTable(value ? Number(value) : null)
               }
             >
-              <option value="">Masa seçin</option>
+              <option value="">{text("Masa seçin", "Select a table")}</option>
               {Array.from(
                 { length: Math.min(cafe.tableCount ?? 0, 200) },
                 (_, i) => i + 1,
               ).map((t) => (
                 <option key={t} value={t}>
-                  Masa {t}
+                  {text("Masa", "Table")} {t}
                 </option>
               ))}
             </AppSelect>
           </label>
           <strong>
             {pickedTable
-              ? `Masa ${pickedTable} için sipariş verebilirsiniz`
-              : "Masa numaranızı seçin ve sipariş verin"}
+              ? text(
+                  `Masa ${pickedTable} için sipariş verebilirsiniz`,
+                  `You can order for table ${pickedTable}`,
+                )
+              : text(
+                  "Masa numaranızı seçin ve sipariş verin",
+                  "Select your table to order",
+                )}
           </strong>
         </div>
       )}
+      <MenuWifi wifi={revealedWifi ?? cafe.wifi} english={language === "en"} />
       <MenuView
         cafe={cafe}
+        language={language}
         rates={rates}
         currency={currency}
         onAddToOrder={
@@ -256,7 +299,7 @@ export default function PublicMenu({
           : rateError}{" "}
         {currency !== "TRY"
           ? "Converted prices are approximate. Payment is in TRY."
-          : "Ödemeler TL olarak alınır."}
+          : text("Ödemeler TL olarak alınır.", "Payment is collected in TRY.")}
       </p>
       {orderEnabled && cartCount > 0 && (
         <button
@@ -267,7 +310,7 @@ export default function PublicMenu({
           }}
         >
           <span>
-            <ShoppingBag size={19} /> Sepeti görüntüle
+            <ShoppingBag size={19} /> {text("Sepeti görüntüle", "View cart")}
           </span>
           <b>{cartCount}</b>
           <strong>
@@ -289,11 +332,13 @@ export default function PublicMenu({
           >
             <header>
               <div>
-                <span>MASA {effectiveTable}</span>
-                <h2>Siparişiniz</h2>
+                <span>
+                  {text("MASA", "TABLE")} {effectiveTable}
+                </span>
+                <h2>{text("Siparişiniz", "Your order")}</h2>
               </div>
               <button
-                aria-label="Sepeti kapat"
+                aria-label={text("Sepeti kapat", "Close cart")}
                 onClick={() => setCartOpen(false)}
               >
                 <X size={20} />
@@ -302,9 +347,22 @@ export default function PublicMenu({
             {sentOrder ? (
               <div className="order-success">
                 <CheckCircle2 size={42} />
-                <h3>Siparişiniz alındı.</h3>
-                <p>İşletme ekibi siparişinizi hazırlamaya başlayacak.</p>
-                <small>Sipariş no · {sentOrder}</small>
+                <h3>
+                  {text("Siparişiniz alındı.", "Your order has been received.")}
+                </h3>
+                <p>
+                  {text(
+                    "İşletme ekibi siparişinizi hazırlamaya başlayacak.",
+                    "The team will start preparing your order.",
+                  )}
+                </p>
+                <small>
+                  {text("Sipariş no", "Order no")} · {sentOrder}
+                </small>
+                <MenuWifi
+                  wifi={revealedWifi ?? cafe.wifi}
+                  english={language === "en"}
+                />
                 <button
                   className="btn primary full"
                   onClick={() => {
@@ -312,7 +370,7 @@ export default function PublicMenu({
                     setCartOpen(false);
                   }}
                 >
-                  Menüye dön
+                  {text("Menüye dön", "Back to menu")}
                 </button>
               </div>
             ) : (
@@ -321,7 +379,7 @@ export default function PublicMenu({
                   {cartLines.map(({ item, quantity }) => (
                     <article key={item.id}>
                       <div>
-                        <strong>{item.name}</strong>
+                        <strong>{itemName(item, language)}</strong>
                         <small>
                           {(item.price * quantity).toLocaleString("tr-TR", {
                             style: "currency",
@@ -331,14 +389,20 @@ export default function PublicMenu({
                       </div>
                       <div className="quantity-control">
                         <button
-                          aria-label={`${item.name} adedini azalt`}
+                          aria-label={text(
+                            `${item.name} adedini azalt`,
+                            `Decrease ${itemName(item, language)}`,
+                          )}
                           onClick={() => changeQuantity(item, -1)}
                         >
                           <Minus size={15} />
                         </button>
                         <b>{quantity}</b>
                         <button
-                          aria-label={`${item.name} adedini artır`}
+                          aria-label={text(
+                            `${item.name} adedini artır`,
+                            `Increase ${itemName(item, language)}`,
+                          )}
                           onClick={() => changeQuantity(item, 1)}
                         >
                           <Plus size={15} />
@@ -348,7 +412,7 @@ export default function PublicMenu({
                   ))}
                 </div>
                 <div className="cart-total">
-                  <span>Toplam</span>
+                  <span>{text("Toplam", "Total")}</span>
                   <strong>
                     {cartTotal.toLocaleString("tr-TR", {
                       style: "currency",
@@ -358,19 +422,24 @@ export default function PublicMenu({
                 </div>
                 {needsDailyCode && (
                   <label className="daily-code-field">
-                    Günlük sipariş kodu
+                    {text("Günlük sipariş kodu", "Daily order code")}
                     <input
                       inputMode="text"
                       autoCapitalize="characters"
                       maxLength={8}
                       required
-                      placeholder="Masadaki ekranda yazan kod"
+                      placeholder={text(
+                        "Masadaki ekranda yazan kod",
+                        "Code shown at your table",
+                      )}
                       value={dailyCode}
                       onChange={(e) => setDailyCode(e.target.value)}
                     />
                     <small className="muted">
-                      İşletmenin bugünkü sipariş kodu; masanızdaki ekran ya da
-                      panoda yazılıdır.
+                      {text(
+                        "İşletmenin bugünkü sipariş kodu; masanızdaki ekran ya da panoda yazılıdır.",
+                        "The daily order code is displayed at your table or on the noticeboard.",
+                      )}
                     </small>
                   </label>
                 )}
@@ -386,11 +455,17 @@ export default function PublicMenu({
                     <ShoppingBag size={17} />
                   )}
                   {sending
-                    ? "Gönderiliyor…"
-                    : `Masa ${effectiveTable} için sipariş ver`}
+                    ? text("Gönderiliyor…", "Sending…")
+                    : text(
+                        `Masa ${effectiveTable} için sipariş ver`,
+                        `Place order for table ${effectiveTable}`,
+                      )}
                 </button>
                 <p className="order-payment-note">
-                  Ödeme işletme tarafından ayrıca alınır.
+                  {text(
+                    "Ödeme işletme tarafından ayrıca alınır.",
+                    "Payment is collected separately by the business.",
+                  )}
                 </p>
               </>
             )}
@@ -398,8 +473,10 @@ export default function PublicMenu({
         </div>
       )}
       <p className="rate-disclaimer privacy-note-public">
-        Sipariş doğrulaması için tarayıcınızda anonim bir tanımlayıcı saklanır.
-        Kişisel veri ile eşleştirilmez.
+        {text(
+          "Sipariş doğrulaması için tarayıcınızda anonim bir tanımlayıcı saklanır. Kişisel veri ile eşleştirilmez.",
+          "An anonymous identifier is stored in your browser to verify orders. It is not linked to personal information.",
+        )}
       </p>
     </main>
   );

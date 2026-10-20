@@ -1,4 +1,5 @@
 "use client";
+import WifiSettings from "./wifi-settings";
 import AppSelect from "@/components/app-select";
 /* eslint-disable @next/next/no-html-link-for-pages -- Sites authentication requires top-level navigation, never Next prefetch. */
 /* eslint-disable @next/next/no-img-element -- QR is an in-memory PNG, not an image optimizer source. */
@@ -1524,6 +1525,10 @@ export default function Dashboard({
                 QR kodunuzu korumak için bu adres sabittir.
               </small>
             </label>
+            <WifiSettings
+              value={cafeDetails.wifi}
+              onChange={(wifi) => setCafeDetails({ ...cafeDetails, wifi })}
+            />
             <label className="setting-switch">
               <input
                 type="checkbox"

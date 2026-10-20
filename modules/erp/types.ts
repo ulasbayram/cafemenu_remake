@@ -20,6 +20,8 @@ export type Sale = {
   total: number;
   material_cost: number;
   cost_complete: boolean;
+  payment_method?: "cash" | "card" | null;
+  discount_total?: number;
   lines: {
     id: string;
     name: string;
@@ -27,6 +29,9 @@ export type Sale = {
     unitPrice: number;
     materialCost: number;
     costComplete: boolean;
+    complimentaryQuantity?: number;
+    discountAmount?: number;
+    netTotal?: number;
   }[];
 };
 export type Expense = {

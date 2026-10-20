@@ -41,6 +41,8 @@ export async function GET(request: Request) {
       cafe: string;
       table_no: number;
       total: number;
+      payment_method?: "cash" | "card" | null;
+      receipt_discount?: number;
       status: string;
       created_at: string;
       updated_at: string;
@@ -68,9 +70,7 @@ export async function GET(request: Request) {
         for (let offset = 0; ; offset += 1000) {
           const { data, error } = await client
             .from("orders")
-            .select(
-              "id, cafe, table_no, total, status, created_at, updated_at, items",
-            )
+            .select("*")
             .eq("cafe", cafeId)
             .gte("created_at", `${since}T00:00:00+03:00`)
             .order("created_at", { ascending: false })
@@ -102,6 +102,8 @@ export async function GET(request: Request) {
         cafe: row.cafe,
         table: row.table_no,
         total: Number(row.total),
+        paymentMethod: row.payment_method ?? null,
+        receiptDiscount: Number(row.receipt_discount ?? 0),
         status: row.status,
         createdAt: row.created_at,
         updatedAt: row.updated_at,

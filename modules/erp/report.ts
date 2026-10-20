@@ -54,12 +54,16 @@ export function erpReport(data: ErpData, month: string, day: string) {
         complete: true,
       };
       p.quantity += Number(line.quantity);
-      p.revenue += Number(line.quantity) * Number(line.unitPrice);
+      p.revenue +=
+        line.netTotal == null
+          ? Number(line.quantity) * Number(line.unitPrice)
+          : Number(line.netTotal);
       p.cost += Number(line.materialCost);
       p.complete = p.complete && line.costComplete;
       products.set(line.id, p);
     }
   return {
+    sales,
     summary: totals(sales, expenses),
     year: totals(data.sales, data.expenses),
     daily: [...daily]
@@ -79,6 +83,36 @@ export function erpReport(data: ErpData, month: string, day: string) {
     daySales: data.sales.filter((s) => turkeyDay(s.completed_at) === day),
     expenses,
   };
+}
+export function paymentBreakdown(sales: Sale[]) {
+  return (["cash", "card", "unknown"] as const).map((method) => {
+    const rows = sales.filter(
+      (s) => (s.payment_method ?? "unknown") === method,
+    );
+    return {
+      method,
+      orders: rows.length,
+      revenue: rows.reduce((a, s) => a + Number(s.total), 0),
+      discounts: rows.reduce((a, s) => a + Number(s.discount_total ?? 0), 0),
+      units: rows.reduce(
+        (a, s) =>
+          a +
+          s.lines.reduce(
+            (b, l) =>
+              b +
+              (Number(l.netTotal ?? l.unitPrice * l.quantity) > 0
+                ? l.quantity - (l.complimentaryQuantity ?? 0)
+                : 0),
+            0,
+          ),
+        0,
+      ),
+      served: rows.reduce(
+        (a, s) => a + s.lines.reduce((b, l) => b + l.quantity, 0),
+        0,
+      ),
+    };
+  });
 }
 export function recommendations(data: ErpData, reference = new Date()) {
   const end =

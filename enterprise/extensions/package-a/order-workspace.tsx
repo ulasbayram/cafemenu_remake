@@ -3,12 +3,13 @@ import { useState } from "react";
 import { Plus, Pencil, RefreshCw, Check, LoaderCircle } from "lucide-react";
 import type { Cafe } from "@/lib/menu";
 import type { CafeOrder } from "@/lib/orders";
-import { orderStatusLabel } from "@/lib/orders";
+import { orderStatusLabel, paymentMethodLabel } from "@/lib/orders";
 import { api } from "@/lib/client-api";
 import { useOrderFeed } from "@/hooks/use-order-feed";
 import OrderNotificationControls from "@/app/order-notification-controls";
+import OrderSettlement from "@/app/order-settlement";
 import OrderEditor from "./order-editor";
-import { orderTotal } from "@/lib/orders";
+import { priceOrder } from "@/lib/orders";
 import type { EnterpriseOrder } from "./types";
 import styles from "./dashboard.module.css";
 
@@ -20,6 +21,8 @@ function toOrder(row: EnterpriseOrder, cafe: Cafe): CafeOrder {
     tableNo: row.table,
     status: row.status,
     total: row.total,
+    paymentMethod: row.paymentMethod,
+    receiptDiscount: row.receiptDiscount,
     items: row.items,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -49,6 +52,7 @@ export default function PackageAOrders({
   const [editor, setEditor] = useState<{ order: CafeOrder | null } | null>(
     null,
   );
+  const [settlement, setSettlement] = useState<CafeOrder | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const feed = useOrderFeed(cafe.id, setError, setMessage, !preview);
   const orders = preview ? demoOrders : feed.orders;
@@ -68,6 +72,8 @@ export default function PackageAOrders({
         table: order.tableNo,
         status: order.status,
         total: order.total,
+        paymentMethod: order.paymentMethod,
+        receiptDiscount: order.receiptDiscount,
         createdAt: order.createdAt,
         updatedAt: order.updatedAt,
         items: order.items,
@@ -76,13 +82,10 @@ export default function PackageAOrders({
   };
   async function advance(order: CafeOrder) {
     const status = order.status === "waiting" ? "delivered" : "completed";
-    if (
-      status === "completed" &&
-      !window.confirm(
-        `Masa ${order.tableNo} için ödeme alındı mı? Sipariş tamamlanacak.`,
-      )
-    )
+    if (status === "completed") {
+      setSettlement(order);
       return;
+    }
     setBusy(order.id);
     setError("");
     try {
@@ -204,6 +207,11 @@ export default function PackageAOrders({
                     >
                       {orderStatusLabel[order.status]}
                     </span>
+                    {order.paymentMethod && (
+                      <small className={styles.orderLines}>
+                        {paymentMethodLabel[order.paymentMethod]}
+                      </small>
+                    )}
                   </td>
                   <td>
                     {order.total.toLocaleString("tr-TR", {
@@ -230,7 +238,7 @@ export default function PackageAOrders({
                           <Check size={14} />
                           {order.status === "waiting"
                             ? "Teslim edildi"
-                            : "Tamamla"}
+                            : "Ödeme ve indirim"}
                         </button>
                       </div>
                     )}
@@ -243,6 +251,36 @@ export default function PackageAOrders({
             <p className={styles.caption}>Bu görünümde sipariş yok.</p>
           )}
         </div>
+      )}
+      {settlement && (
+        <OrderSettlement
+          order={settlement}
+          close={() => setSettlement(null)}
+          onSaved={() => {
+            if (!preview) {
+              void feed.refresh();
+              onChanged();
+            }
+            setMessage("Sipariş güncellendi.");
+          }}
+          onPreviewSave={
+            preview
+              ? (change) =>
+                  publishPreview(
+                    demoOrders.map((row) =>
+                      row.id === settlement.id
+                        ? {
+                            ...row,
+                            ...change,
+                            status: change.completed ? "completed" : row.status,
+                            updatedAt: new Date().toISOString(),
+                          }
+                        : row,
+                    ),
+                  )
+              : undefined
+          }
+        />
       )}
       {editor && (
         <OrderEditor
@@ -262,13 +300,17 @@ export default function PackageAOrders({
             preview
               ? (change) => {
                   const now = new Date().toISOString();
+                  const priced = priceOrder(
+                    change.items,
+                    editor.order?.receiptDiscount ?? 0,
+                  );
                   const next: CafeOrder = editor.order
                     ? {
                         ...editor.order,
                         tableNo: change.table,
                         status: change.status,
-                        items: change.items,
-                        total: orderTotal(change.items),
+                        items: priced.items,
+                        total: priced.total,
                         updatedAt: now,
                       }
                     : {
@@ -277,8 +319,8 @@ export default function PackageAOrders({
                         cafeName: cafe.name,
                         tableNo: change.table,
                         status: change.status,
-                        items: change.items,
-                        total: orderTotal(change.items),
+                        items: priced.items,
+                        total: priced.total,
                         createdAt: now,
                         updatedAt: now,
                         distanceKm: null,

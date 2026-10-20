@@ -111,11 +111,16 @@ export default function ProductsManager({
       current
         ? {
             ...current,
-            items: current.items.some((entry) => entry.id === item.id)
+            items: (current.items.some((entry) => entry.id === item.id)
               ? current.items.map((entry) =>
                   entry.id === item.id ? item : entry,
                 )
-              : [...current.items, item],
+              : [...current.items, item]
+            ).map((entry) =>
+              entry.category === item.category && item.categoryEn !== undefined
+                ? { ...entry, categoryEn: item.categoryEn }
+                : entry,
+            ),
           }
         : current,
     );
@@ -573,6 +578,44 @@ export default function ProductsManager({
                 }
               />
             </label>
+            <details className="translation-fields">
+              <summary>İngilizce menü bilgileri · isteğe bağlı</summary>
+              <label>
+                İngilizce ürün adı
+                <input
+                  maxLength={100}
+                  value={editing.nameEn ?? ""}
+                  onChange={(e) =>
+                    setEditing({ ...editing, nameEn: e.target.value })
+                  }
+                />
+              </label>
+              <label>
+                İngilizce açıklama
+                <textarea
+                  rows={3}
+                  maxLength={300}
+                  value={editing.descriptionEn ?? ""}
+                  onChange={(e) =>
+                    setEditing({ ...editing, descriptionEn: e.target.value })
+                  }
+                />
+              </label>
+              <label>
+                İngilizce kategori adı
+                <input
+                  maxLength={60}
+                  value={editing.categoryEn ?? ""}
+                  onChange={(e) =>
+                    setEditing({ ...editing, categoryEn: e.target.value })
+                  }
+                />
+                <small className="muted">
+                  Aynı kategoride ortak kullanılır. Boş alanlarda Türkçe içerik
+                  gösterilir.
+                </small>
+              </label>
+            </details>
             <div className="form-columns">
               <label>
                 Fiyat (₺)

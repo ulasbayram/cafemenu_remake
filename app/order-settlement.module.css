@@ -1,0 +1,187 @@
+.dialog {
+  width: min(680px, calc(100% - 24px));
+  max-width: calc(100% - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+  margin: auto;
+  padding: 26px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--bg);
+  color: var(--ink);
+  box-shadow: 0 24px 100px #0005;
+}
+.dialog::backdrop {
+  background: #07170f99;
+  backdrop-filter: blur(6px);
+}
+.dialog header,
+.lineHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+}
+.dialog header span,
+.hint,
+.lines small {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.8;
+}
+.dialog h2 {
+  font-size: 24px;
+  margin: 5px 0 0;
+}
+.hint {
+  margin: 14px 0;
+}
+.lines {
+  display: grid;
+  gap: 10px;
+  margin: 20px 0;
+  max-height: 340px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.lines article {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.lineHeading {
+  font-size: 13px;
+}
+.lineHeading span {
+  white-space: nowrap;
+  color: var(--muted);
+}
+.adjustments {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 14px 0 8px;
+}
+.dialog label {
+  font-size: 11px;
+  margin: 0;
+}
+.adjustments label > span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.dialog input {
+  width: 100%;
+  min-width: 0;
+  margin-top: 6px;
+}
+.receipt {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+}
+.receipt > label {
+  flex: 1;
+}
+.receipt > div {
+  display: flex;
+  gap: 5px;
+}
+.receipt button {
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+}
+.receipt button[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--green) 20%, var(--bg));
+  color: var(--ink);
+}
+.totals {
+  margin: 20px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 12px 0;
+}
+.totals p {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  margin: 8px 0;
+}
+.totals p:last-child {
+  font-size: 21px;
+  margin-top: 16px;
+}
+.totals b {
+  font-weight: 500;
+}
+.payment {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  border: 0;
+  padding: 0;
+  margin: 20px 0;
+}
+.payment legend {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.payment label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.payment input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--green);
+}
+.payment label[data-selected="true"] {
+  border-color: var(--green);
+  background: color-mix(in srgb, var(--green) 12%, var(--bg));
+}
+.dialog footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 24px;
+}
+.dialog button:disabled {
+  opacity: 0.5;
+}
+@media (max-width: 600px) {
+  .dialog {
+    padding: 18px;
+  }
+  .lines {
+    max-height: 300px;
+  }
+  .dialog footer .btn {
+    flex: 1;
+  }
+  .dialog footer button:last-child {
+    flex-basis: 100%;
+  }
+  .payment label {
+    padding: 12px;
+  }
+  .totals p:last-child {
+    font-size: 19px;
+  }
+}

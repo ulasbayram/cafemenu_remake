@@ -146,15 +146,14 @@ registerHooks({
   },
 });
 
-const { manualOrderSchema, manualOrderLines } = await import(
-  "../enterprise/extensions/package-a/orders.ts"
-);
+const { manualOrderSchema, manualOrderLines } =
+  await import("../enterprise/extensions/package-a/orders.ts");
 const { orderTotal } = await import("../lib/orders.ts");
 const { POST } =
   await import("../app/api/enterprise/package-a/orders/manual/route.ts");
 const defaultRoute = await import("../app/api/orders/[id]/route.ts");
 const { PUT } = defaultRoute;
-assert.equal(defaultRoute.PATCH, undefined);
+assert.equal(typeof defaultRoute.PATCH, "function"); // Discounts only; never manual product edits.
 const { PATCH } =
   await import("../app/api/enterprise/package-a/orders/[id]/route.ts");
 const { allowedPushEndpoint, notifyNewOrder } =
@@ -270,6 +269,117 @@ assert.equal(
 );
 assert.equal(
   (await PUT(req({ status: "delivered" }, "PUT"), context)).status,
+  409,
+);
+// Settlement is a separate shared operation, not a backdoor for manual edits.
+state.order = {
+  id: orderId,
+  cafe: cafeId,
+  status: "delivered",
+  items: [{ id: item.id, name: item.name, quantity: 3, unitPrice: 10 }],
+  total: 30,
+  updated_at: timestamp,
+};
+assert.equal(
+  (
+    await PUT(
+      req({ status: "completed", expectedUpdatedAt: timestamp }, "PUT"),
+      context,
+    )
+  ).status,
+  400,
+);
+assert.equal(
+  (
+    await defaultRoute.PATCH(
+      req({ expectedUpdatedAt: timestamp, receiptDiscount: 31 }, "PATCH"),
+      context,
+    )
+  ).status,
+  400,
+);
+assert.equal(
+  (
+    await defaultRoute.PATCH(
+      req(
+        {
+          expectedUpdatedAt: timestamp,
+          adjustments: [
+            { id: "foreign", complimentaryQuantity: 0, discountAmount: 1 },
+          ],
+        },
+        "PATCH",
+      ),
+      context,
+    )
+  ).status,
+  400,
+);
+assert.equal(
+  (
+    await defaultRoute.PATCH(
+      req(
+        {
+          expectedUpdatedAt: timestamp,
+          items: [{ id: "forged", quantity: 99, unitPrice: 0 }],
+          total: 0,
+          receiptDiscount: 5,
+        },
+        "PATCH",
+      ),
+      context,
+    )
+  ).status,
+  200,
+);
+assert.equal(state.order.total, 25);
+assert.equal(state.order.items[0].id, item.id);
+assert.equal(
+  (
+    await PUT(
+      req(
+        {
+          status: "completed",
+          paymentMethod: "card",
+          expectedUpdatedAt: timestamp,
+        },
+        "PUT",
+      ),
+      context,
+    )
+  ).status,
+  409,
+);
+assert.equal(
+  (
+    await PUT(
+      req(
+        {
+          status: "completed",
+          paymentMethod: "card",
+          expectedUpdatedAt: state.order.updated_at,
+          receiptDiscount: 5,
+          adjustments: [
+            { id: item.id, complimentaryQuantity: 1, discountAmount: 0 },
+          ],
+        },
+        "PUT",
+      ),
+      context,
+    )
+  ).status,
+  200,
+);
+assert.equal(state.order.total, 15);
+assert.equal(state.order.payment_method, "card");
+assert.equal(state.order.items[0].quantity, 3);
+assert.equal(
+  (
+    await defaultRoute.PATCH(
+      req({ expectedUpdatedAt: state.order.updated_at }, "PATCH"),
+      context,
+    )
+  ).status,
   409,
 );
 assert.equal(

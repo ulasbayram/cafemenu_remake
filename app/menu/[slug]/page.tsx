@@ -2,6 +2,9 @@ import { svc } from "@/db";
 import PublicMenu from "../../public-menu";
 import { notFound } from "next/navigation";
 import { verifyTableOrder } from "@/lib/table-order-token";
+import { cookies } from "next/headers";
+import { publicCafeData, wifiCookieName } from "@/lib/menu-wifi";
+import type { Cafe } from "@/lib/menu";
 export const dynamic = "force-dynamic";
 export default async function Page({
   params,
@@ -21,13 +24,34 @@ export default async function Page({
     .limit(1);
   const r = data?.[0];
   if (!r) notFound();
-  const c = (r.data ?? {}) as Record<string, unknown>;
+  const raw = (r.data ?? {}) as Record<string, unknown> & {
+    wifi?: Cafe["wifi"];
+  };
+  let ordered = false;
+  if (raw.wifi?.password && raw.wifi.visibility === "after-order") {
+    const proof = (await cookies()).get(wifiCookieName(r.id))?.value;
+    if (proof && /^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(proof)) {
+      const { data: receipt } = await svc()
+        .from("orders")
+        .select("id")
+        .eq("id", proof)
+        .eq("cafe", r.id)
+        // eslint-disable-next-line react-hooks/purity -- Dynamic server request: expire the receipt at request time.
+        .gte("created_at", new Date(Date.now() - 43200000).toISOString())
+        .maybeSingle();
+      ordered = !!receipt;
+    }
+  }
+  const c = publicCafeData(raw, ordered);
   if (!r.published) notFound();
   const tableCount = Number(r.table_count ?? 0);
   const policy = {
     enabled: true,
     mode: "token" as const,
-    ...((c.orderPolicy as { enabled?: boolean; mode?: "token" | "token+daily" | "open" }) ?? {}),
+    ...((c.orderPolicy as {
+      enabled?: boolean;
+      mode?: "token" | "token+daily" | "open";
+    }) ?? {}),
   };
   const table =
     tableParam && /^[0-9]+$/.test(tableParam) && Number(tableParam) >= 1
@@ -74,7 +98,11 @@ export default async function Page({
           } as never
         }
         table={table}
-        orderToken={canOrder ? (orderToken ?? (policy.mode === "open" ? "open" : null)) : null}
+        orderToken={
+          canOrder
+            ? (orderToken ?? (policy.mode === "open" ? "open" : null))
+            : null
+        }
         orderMode={canOrder ? policy.mode : null}
       />
     </>

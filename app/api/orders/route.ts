@@ -6,6 +6,7 @@ import { rateCheck } from "@/lib/rate-limit";
 import type { Item, OrderPolicy } from "@/lib/menu";
 import { orderTotal } from "@/lib/orders";
 import { notifyNewOrder } from "@/lib/order-push";
+import { wifiCookieName } from "@/lib/menu-wifi";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const orderInput = z.object({
@@ -40,6 +41,8 @@ function mapOrder(row: Record<string, unknown> & { cafes?: unknown }) {
     status: row.status,
     items: row.items,
     total: Number(row.total),
+    paymentMethod: row.payment_method ?? null,
+    receiptDiscount: Number(row.receipt_discount ?? 0),
     distanceKm: row.distance_km == null ? null : Number(row.distance_km),
     distanceSource: row.distance_source ?? null,
     createdAt: row.created_at,
@@ -53,9 +56,7 @@ export async function GET(request: Request) {
     const cafe = new URL(request.url).searchParams.get("cafe");
     let query = asUser(userJwt(request))
       .from("orders")
-      .select(
-        "id, cafe, table_no, status, items, total, distance_km, distance_source, created_at, updated_at, cafes(name)",
-      )
+      .select("*, cafes(name)")
       .order("created_at", { ascending: false })
       .limit(300);
     if (cafe && UUID.test(cafe)) query = query.eq("cafe", cafe);
@@ -81,7 +82,7 @@ export async function POST(request: Request) {
     const client = svc();
     const { data, error } = await client
       .from("cafes")
-      .select("id, name, owner, published, table_count, data")
+      .select("id, slug, name, owner, published, table_count, data")
       .eq("id", input.cafe)
       .limit(1);
     if (error) throw error;
@@ -203,8 +204,18 @@ export async function POST(request: Request) {
         id: created.id,
         status: created.status,
         createdAt: created.created_at,
+        wifi: cafe.data?.wifi?.password ? cafe.data.wifi : undefined,
       },
-      { status: 201 },
+      {
+        status: 201,
+        headers:
+          cafe.data?.wifi?.password &&
+          cafe.data.wifi.visibility === "after-order"
+            ? {
+                "Set-Cookie": `${wifiCookieName(cafe.id)}=${created.id}; Path=/menu/${cafe.slug}; Max-Age=43200; HttpOnly; SameSite=Lax${new URL(request.url).protocol === "https:" ? "; Secure" : ""}`,
+              }
+            : undefined,
+      },
     );
   } catch (error) {
     return fail(error);

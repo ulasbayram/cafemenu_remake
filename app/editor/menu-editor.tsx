@@ -1,4 +1,5 @@
 "use client";
+import WifiSettings from "../wifi-settings";
 import AppSelect from "@/components/app-select";
 /* eslint-disable @next/next/no-img-element -- The uploaded logo is already optimized locally; no image service is needed. */
 import { useEffect, useState, useCallback, type CSSProperties } from "react";
@@ -589,6 +590,14 @@ export default function MenuEditor({
                   />
                 </label>
                 <label>
+                  İngilizce kısa açıklama · isteğe bağlı
+                  <input
+                    maxLength={150}
+                    value={cafe.subtitleEn ?? ""}
+                    onChange={(e) => change({ subtitleEn: e.target.value })}
+                  />
+                </label>
+                <label>
                   Konum
                   <input
                     maxLength={150}
@@ -596,6 +605,12 @@ export default function MenuEditor({
                     onChange={(e) => change({ location: e.target.value })}
                   />
                 </label>
+                <WifiSettings
+                  value={cafe.wifi}
+                  onChange={(wifi) => change({ wifi })}
+                  theme={access === "admin" ? "admin" : "standard"}
+                />
+
                 <label>
                   Başlık yazı tipi
                   <AppSelect

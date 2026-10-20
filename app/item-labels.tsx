@@ -55,11 +55,58 @@ export function GeneralLabelIcon({ label }: { label: string }) {
   );
 }
 
-export default function ItemLabels({ item }: { item: ItemLabelData }) {
+const englishLabels: Record<string, string> = {
+  "allergen:gluten": "Contains gluten",
+  "allergen:milk": "Contains milk",
+  "allergen:eggs": "Contains eggs",
+  "allergen:peanuts": "Contains peanuts",
+  "allergen:nuts": "Contains nuts",
+  "allergen:soy": "Contains soy",
+  "allergen:sesame": "Contains sesame",
+  "allergen:fish": "Contains fish",
+  "allergen:crustaceans": "Contains crustaceans",
+  "allergen:molluscs": "Contains molluscs",
+  "allergen:celery": "Contains celery",
+  "allergen:mustard": "Contains mustard",
+  "allergen:lupin": "Contains lupin",
+  "allergen:sulphites": "Contains sulphites",
+  "diet:vegan": "Vegan",
+  "diet:vegetarian": "Vegetarian",
+  "diet:gluten-free": "Gluten-free",
+  "diet:lactose-free": "Lactose-free",
+  "diet:no-added-sugar": "No added sugar",
+  "general:spicy": "Spicy",
+  "general:mildly-spicy": "Mildly spicy",
+  "general:extra-spicy": "Extra spicy",
+  "general:seasoned": "Seasoned",
+  "general:hot": "Hot",
+  "general:cold": "Cold",
+  "general:iced": "Iced",
+  "general:caffeinated": "Caffeinated",
+  "general:decaf": "Decaf",
+  "general:homemade": "Homemade",
+  "general:daily": "Made daily",
+  "general:fresh": "Fresh",
+  "general:organic": "Organic",
+  "general:new": "New",
+  "general:special": "Special",
+  "general:popular": "Popular",
+  "general:favourite": "Favourite",
+};
+export default function ItemLabels({
+  item,
+  language = "tr",
+}: {
+  item: ItemLabelData;
+  language?: "tr" | "en";
+}) {
   const labels = productLabels(item);
   if (!labels.length) return null;
   return (
-    <span className="item-labels" aria-label="Ürün etiketleri">
+    <span
+      className="item-labels"
+      aria-label={language === "en" ? "Product labels" : "Ürün etiketleri"}
+    >
       {labels.map((label) => {
         const Icon =
           label.kind === "custom" || label.kind === "general"
@@ -77,7 +124,9 @@ export default function ItemLabels({ item }: { item: ItemLabelData }) {
                 aria-hidden="true"
               />
             )}
-            {label.text}
+            {language === "en"
+              ? (englishLabels[label.key] ?? label.text)
+              : label.text}
           </span>
         );
       })}

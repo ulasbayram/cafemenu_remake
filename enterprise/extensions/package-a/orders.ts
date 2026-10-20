@@ -43,6 +43,8 @@ export function manualOrderLines(
       name: previous?.name ?? product!.name,
       quantity: line.quantity,
       unitPrice,
+      complimentaryQuantity: previous?.complimentaryQuantity ?? 0,
+      discountAmount: previous?.discountAmount ?? 0,
     };
   });
 }

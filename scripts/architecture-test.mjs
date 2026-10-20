@@ -42,14 +42,14 @@ const coreFiles = [
   ...walk(join(root, "hooks")),
 ].filter(
   (file) =>
-    !file.includes("/app/enterprise/") &&
-    !file.includes("/app/modules/") &&
-    !file.includes("/app/api/enterprise/") &&
-    !file.includes("/app/api/modules/"),
+    !file.replaceAll("\\", "/").includes("/app/enterprise/") &&
+    !file.replaceAll("\\", "/").includes("/app/modules/") &&
+    !file.replaceAll("\\", "/").includes("/app/api/enterprise/") &&
+    !file.replaceAll("\\", "/").includes("/app/api/modules/"),
 );
 
 for (const file of coreFiles) {
-  const rel = relative(root, file);
+  const rel = relative(root, file).replaceAll("\\", "/");
   if (ALLOWED_CORE_TO_PACKAGE.has(rel)) continue;
   for (const spec of importsOf(file)) {
     assert.ok(
@@ -82,7 +82,9 @@ for (const [rel, exports] of Object.entries(contract)) {
     else
       assert.match(
         source,
-        new RegExp(`export (?:type |const |function |async function )?${symbol}\\b`),
+        new RegExp(
+          `export (?:type |const |function |async function )?${symbol}\\b`,
+        ),
         `${rel} must export ${symbol} (packages depend on it)`,
       );
   }
@@ -95,7 +97,7 @@ const routes = {
   "app/api/enterprise/package-a/orders/manual/route.ts": ["POST"],
   "app/api/enterprise/package-a/orders/[id]/route.ts": ["PATCH"],
   "app/api/orders/route.ts": ["GET", "POST"],
-  "app/api/orders/[id]/route.ts": ["PUT"],
+  "app/api/orders/[id]/route.ts": ["PUT", "PATCH"],
   "app/api/order-notifications/route.ts": ["GET", "POST", "DELETE"],
 };
 for (const [rel, methods] of Object.entries(routes)) {
@@ -113,18 +115,15 @@ for (const gone of [
   "app/api/enterprise/access/route.ts",
   "app/api/modules/access/route.ts",
 ])
-  assert.ok(!existsSync(join(root, gone)), `${gone} was removed; do not re-add`);
+  assert.ok(
+    !existsSync(join(root, gone)),
+    `${gone} was removed; do not re-add`,
+  );
 
 // ── Migrations are append-only and numbered ─────────────────────────────────
 const migrations = readdirSync(join(root, "supabase/migrations")).sort();
-for (const required of [
-  "0008_menu_items.sql",
-  "0009_erp_trigger_safety.sql",
-])
-  assert.ok(
-    migrations.includes(required),
-    `migration ${required} is missing`,
-  );
+for (const required of ["0008_menu_items.sql", "0009_erp_trigger_safety.sql"])
+  assert.ok(migrations.includes(required), `migration ${required} is missing`);
 const numbers = migrations.map((f) => Number(f.slice(0, 4)));
 assert.ok(
   numbers.every((n, i) => i === 0 || n >= numbers[i - 1]),
@@ -182,7 +181,12 @@ for (const rel of [
 // handler calls a missing `navigateClientSide` and throws inside
 // startTransition, so the URL never changes. All navigation must go through
 // the plain-anchor NavLink wrapper instead.
-for (const file of [...walk(join(root, "app")), ...walk(join(root, "enterprise")), ...walk(join(root, "modules")), ...walk(join(root, "components"))]) {
+for (const file of [
+  ...walk(join(root, "app")),
+  ...walk(join(root, "enterprise")),
+  ...walk(join(root, "modules")),
+  ...walk(join(root, "components")),
+]) {
   const rel = relative(root, file);
   const source = readFileSync(file, "utf8");
   assert.ok(
@@ -205,5 +209,5 @@ assert.match(
 assert.match(sitesEnv, /VAPID_PUBLIC_KEY/, "VAPID env must be forwarded");
 
 console.log(
-  "PASS: core→package import boundary, package contract exports, route contracts, deleted routes stay gone, no bare-\"/\" self-redirect links, module cross-links mounted, no next/link usage, migration numbering + ERP trigger fault tolerance, deploy env wiring",
+  'PASS: core→package import boundary, package contract exports, route contracts, deleted routes stay gone, no bare-"/" self-redirect links, module cross-links mounted, no next/link usage, migration numbering + ERP trigger fault tolerance, deploy env wiring',
 );

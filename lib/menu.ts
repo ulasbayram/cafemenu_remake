@@ -27,7 +27,10 @@ export const itemSchema = z.object({
   ...itemLabelFields,
   id: z.string().min(1).max(80),
   name: z.string().trim().min(1).max(100),
+  nameEn: z.string().trim().max(100).optional(),
   description: z.string().max(300),
+  descriptionEn: z.string().max(300).optional(),
+  categoryEn: z.string().trim().max(60).optional(),
   price: z
     .number()
     .finite()
@@ -39,6 +42,14 @@ export const itemSchema = z.object({
   photo: z.string().url().max(500).nullable().optional(),
 });
 export const cafeSchema = z.object({
+  wifi: z
+    .object({
+      ssid: z.string().trim().max(64).default(""),
+      password: z.string().max(128).default(""),
+      visibility: z.enum(["everyone", "after-order"]).default("everyone"),
+    })
+    .optional(),
+  subtitleEn: z.string().max(150).optional(),
   tableCount: z.number().int().min(0).max(200).optional(),
   orderPolicy: orderPolicySchema.optional(),
   lat: z.number().min(-90).max(90).nullable().optional(),
