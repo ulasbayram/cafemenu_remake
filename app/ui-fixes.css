@@ -1,0 +1,315 @@
+/* Layout and palette corrections only; keep each workspace's existing design.
+ * Do not hide document overflow: wide charts/tables scroll in their own panels. */
+.order-notification-controls > div {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.orders-workspace {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+.orders-toolbar,
+.order-filters,
+.orders-live-status,
+.order-notification-controls {
+  min-width: 0;
+  max-width: 100%;
+}
+.orders-live-status {
+  overflow-wrap: anywhere;
+}
+.orders-live-status > span {
+  flex-shrink: 0;
+}
+.order-notification-controls .btn {
+  white-space: normal;
+  min-height: 44px;
+  max-width: 100%;
+}
+.notification-setup-status {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.order-install-help {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  min-width: 0;
+}
+.order-install-help summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  min-height: 32px;
+}
+.order-install-help > div {
+  font-size: 12px;
+  line-height: 1.9;
+  margin-top: 12px;
+  overflow-wrap: anywhere;
+}
+.order-install-help strong {
+  display: block;
+  margin: 14px 0 6px;
+}
+.order-install-help ol {
+  list-style: decimal;
+  padding-left: 22px;
+  margin: 8px 0 15px;
+}
+.order-install-help li {
+  margin-bottom: 8px;
+}
+.order-install-help p {
+  margin: 8px 0;
+}
+
+/* Dashboard appearance must not recolor a light guest menu or landing form. */
+html
+  .public-shell
+  input:not([type="checkbox"]):not([type="color"]):not([type="radio"]),
+html .public-shell textarea {
+  background: var(--public-surface);
+  color: var(--public-text);
+  border-color: var(--public-border);
+  color-scheme: inherit;
+}
+html .public-shell input::placeholder {
+  color: var(--public-muted);
+}
+html
+  [data-landing-theme="light"]
+  input:not([type="checkbox"]):not([type="color"]) {
+  background: #fffdf7;
+  color: var(--landing-ink);
+  border-color: #dce3d5;
+  color-scheme: light;
+}
+html [data-landing-theme="light"] input::placeholder {
+  color: var(--landing-muted);
+}
+
+/* Admin support editing lacked the admin palette on its outer workspace. */
+.admin-editor-workspace {
+  --admin-bg: #0a1118;
+  --admin-panel: #111b24;
+  --admin-panel-2: #16232d;
+  --admin-line: #243540;
+  --admin-text: #edf4f2;
+  --admin-muted: #91a4aa;
+  --admin-accent: #5ee0b0;
+  --bg: var(--admin-bg);
+  --ink: var(--admin-text);
+  --muted: var(--admin-muted);
+  --line: var(--admin-line);
+  --green: var(--admin-accent);
+  color: var(--admin-text);
+  background: var(--admin-bg);
+  color-scheme: dark;
+  height: 100dvh;
+  min-width: 0;
+}
+.admin-editor-workspace .menu-studio {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+  background: var(--admin-bg);
+}
+.admin-editor-tabs {
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.admin-editor-workspace .admin-editor-tabs button.active {
+  background: var(--admin-accent);
+  color: #07120e;
+}
+html
+  .admin-editor-workspace
+  :is(
+    .studio-header,
+    .studio-layers,
+    .studio-inspector,
+    .products-toolbar,
+    .category-manager,
+    .product-list-panel,
+    .product-editor
+  ) {
+  background: var(--admin-panel);
+  color: var(--admin-text);
+  border-color: var(--admin-line);
+}
+html .admin-editor-workspace .studio-canvas {
+  background-color: var(--admin-bg);
+}
+html
+  .admin-editor-workspace
+  input:not([type="checkbox"]):not([type="color"]):not([type="radio"]),
+html .admin-editor-workspace textarea,
+html
+  .admin-console
+  input:not([type="checkbox"]):not([type="color"]):not([type="radio"]),
+html .admin-console textarea {
+  background: #0c1720;
+  color: var(--admin-text);
+  border-color: var(--admin-line);
+  color-scheme: dark;
+}
+html .admin-editor-workspace .btn {
+  background: var(--admin-panel-2);
+  color: var(--admin-text);
+  border-color: var(--admin-line);
+}
+html .admin-editor-workspace .btn.primary {
+  background: var(--admin-accent);
+  color: #07120e;
+  border-color: var(--admin-accent);
+}
+html .admin-editor-workspace .layer-row {
+  color: var(--admin-muted);
+}
+html .admin-editor-workspace .layer-row.selected {
+  color: var(--admin-accent);
+  background: #16342f;
+}
+html .admin-editor-workspace .muted {
+  color: var(--admin-muted);
+}
+html .admin-editor-workspace .products-workspace {
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Prevent long names and native number/date fields from widening their grids. */
+.form-columns {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+:is(
+    .form-columns,
+    .wifi-settings,
+    .product-editor,
+    .order-notification-controls
+  )
+  :is(label, input, textarea) {
+  min-width: 0;
+  max-width: 100%;
+}
+.menu-wifi strong,
+.page-heading h1,
+.admin-topbar h1 {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+@media (max-width: 760px) {
+  .cafes-section > .section-title {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .cafes-section > .section-title .search-input {
+    flex: 1 1 180px;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .cafes-section .search-input input {
+    width: 100%;
+    min-width: 0;
+  }
+  /* iOS otherwise zooms 10–14px form inputs and leaves the page panned sideways. */
+  html
+    body
+    input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not(
+      [type="range"]
+    ):not([type="file"]):not([type="hidden"]),
+  html body textarea {
+    font-size: 16px;
+  }
+  dialog {
+    max-width: calc(100% - 24px);
+    max-height: calc(100dvh - 24px);
+    overscroll-behavior: contain;
+  }
+  .product-editor {
+    max-height: calc(100dvh - 40px);
+    overscroll-behavior: contain;
+  }
+  .order-sheet {
+    max-height: calc(100dvh - 16px);
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+  .admin-topbar,
+  .admin-panel > header {
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+  .admin-topbar > div,
+  .admin-cafe-body {
+    min-width: 0;
+  }
+  .location-capture {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 720px) {
+  .studio-header {
+    height: auto;
+    min-height: 76px;
+    flex-wrap: wrap;
+    padding: 12px;
+    gap: 10px;
+  }
+  .studio-heading {
+    flex: 1 1 100%;
+    width: 100%;
+    gap: 10px;
+  }
+  .studio-heading > div {
+    flex: 1;
+    min-width: 0;
+  }
+  .studio-heading .icon-btn {
+    flex-shrink: 0;
+  }
+  .studio-actions {
+    width: 100%;
+    min-width: 0;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+  .studio-actions .btn {
+    min-width: 0;
+    padding-inline: 10px;
+    white-space: nowrap;
+  }
+  .studio-actions .icon-btn {
+    flex-shrink: 0;
+  }
+  .canvas-toolbar {
+    min-width: 0;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .canvas-toolbar > [data-app-select] {
+    max-width: 100%;
+  }
+  .product-editor > header {
+    align-items: flex-start;
+  }
+  .product-editor > header > div {
+    min-width: 0;
+  }
+  .product-editor > header h2 {
+    overflow-wrap: anywhere;
+  }
+  .product-photo-editor > div {
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 420px) {
+  .form-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .order-notification-controls > div > .btn {
+    flex: 1 1 100%;
+  }
+}

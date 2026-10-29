@@ -12,6 +12,7 @@ const suites = [
   "social-links-test.mjs",
   "menu-items-test.mjs",
   "order-management-test.mjs",
+  "notification-reliability-test.mjs",
   "enterprise-foundation-test.mjs",
   "admin-access-test.mjs",
   "erp-test.mjs",

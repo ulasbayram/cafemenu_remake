@@ -3,7 +3,7 @@ import OrderSettlement from "./order-settlement";
 import { paymentMethodLabel } from "@/lib/orders";
 import AppSelect from "@/components/app-select";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import {
   CheckCircle2,
   ChefHat,
@@ -39,6 +39,7 @@ const filters: { value: "active" | OrderStatus; label: string }[] = [
 
 export default function OrdersManager({ cafes, onError, onToast }: Props) {
   const [cafe, setCafe] = useState(cafes[0]?.id ?? "");
+  const appliedRequestedCafe = useRef(false);
   const [filter, setFilter] = useState<"active" | OrderStatus>("active");
   const [updating, setUpdating] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<CafeOrder | null>(null);
@@ -47,15 +48,21 @@ export default function OrdersManager({ cafes, onError, onToast }: Props) {
     useOrderFeed(cafe, onError, onToast);
   // Follow the first cafe when the list arrives after mount.
   useEffect(() => {
-    if (!cafe && cafes.length) {
-      const requested = new URLSearchParams(window.location.search).get("cafe");
-      const t = window.setTimeout(
-        () =>
-          setCafe(
-            cafes.find((entry) => entry.id === requested)?.id ?? cafes[0].id,
-          ),
-        0,
-      );
+    if (cafes.length) {
+      const requested = !appliedRequestedCafe.current
+        ? new URLSearchParams(window.location.search).get("cafe")
+        : null;
+      const next =
+        cafes.find((entry) => entry.id === requested)?.id ??
+        (cafes.some((entry) => entry.id === cafe) ? cafe : cafes[0].id);
+      if (next === cafe) {
+        appliedRequestedCafe.current = true;
+        return;
+      }
+      const t = window.setTimeout(() => {
+        appliedRequestedCafe.current = true;
+        setCafe(next);
+      }, 0);
       return () => window.clearTimeout(t);
     }
   }, [cafe, cafes]);

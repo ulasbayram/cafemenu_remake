@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./ui-fixes.css";
+import PwaBootstrap from "./pwa-bootstrap";
 
 export const metadata: Metadata = {
   title: "Fincan · QR Menü & İşletme Yönetimi",
@@ -31,7 +33,10 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <PwaBootstrap />
+        {children}
+      </body>
     </html>
   );
 }

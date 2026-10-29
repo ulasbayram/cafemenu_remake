@@ -211,8 +211,13 @@ export default function AdminApp() {
           <span>{adminEmail}</span>
           <button
             onClick={async () => {
+              const { disableOrderPush } =
+                await import("@/lib/order-notifications-client");
+              await disableOrderPush().catch(() => {});
               await supabase().auth.signOut();
-              router.push("/login");
+              window.location.assign(
+                new URL("/login", window.location.origin).href,
+              );
             }}
           >
             <LogOut size={16} /> Güvenli çıkış

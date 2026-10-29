@@ -34,6 +34,7 @@ export function useOrderFeed(
     let timer: ReturnType<typeof setTimeout>;
     let lastError = "";
     const seen = new Set<string>();
+    const alerted = new Map<string, number>();
     revision.current++;
     async function load() {
       if (!active) return;
@@ -55,8 +56,15 @@ export function useOrderFeed(
         lastError = "";
         if (arrivals.length && document.visibilityState === "visible") {
           callbacks.current.onToast(`${arrivals.length} yeni sipariş geldi.`);
-          if (soundRef.current && audio.current?.state === "running")
+          if (
+            soundRef.current &&
+            audio.current?.state === "running" &&
+            document.hasFocus() &&
+            arrivals.some((order) => !alerted.has(order.id))
+          ) {
             playOrderChime(audio.current);
+            arrivals.forEach((order) => alerted.set(order.id, Date.now()));
+          }
         }
       } catch (error) {
         if (active && lastError !== (error as Error).message) {
@@ -86,17 +94,32 @@ export function useOrderFeed(
     }, 0);
     const reload = () => {
       if (document.visibilityState === "visible") {
+        if (soundRef.current && audio.current?.state === "suspended")
+          void audio.current.resume().catch(() => setSound(false));
         revision.current++;
         void load();
       }
     };
     const push = (event: MessageEvent) => {
+      const relevant =
+        event.data?.type === "ORDER_PUSH" &&
+        event.data.cafeId === cafe &&
+        typeof event.data.orderId === "string";
+      const canSound =
+        relevant &&
+        baseline &&
+        document.visibilityState === "visible" &&
+        document.hasFocus() &&
+        soundRef.current &&
+        audio.current?.state === "running";
+      if (canSound && !alerted.has(event.data.orderId)) {
+        playOrderChime(audio.current!);
+        alerted.set(event.data.orderId, Date.now());
+      }
       event.ports[0]?.postMessage({
         sound:
-          event.data?.cafeId === cafe &&
-          document.visibilityState === "visible" &&
-          soundRef.current &&
-          audio.current?.state === "running",
+          canSound &&
+          Date.now() - (alerted.get(event.data.orderId) ?? 0) < 10000,
       });
       if (event.data?.type === "ORDER_PUSH" && event.data.cafeId === cafe)
         reload();
@@ -146,13 +169,22 @@ export function useOrderFeed(
     await loadRef.current?.();
   }, []);
   async function toggleSound() {
-    if (soundRef.current) {
+    if (soundRef.current && audio.current?.state === "running") {
       soundRef.current = false;
       setSound(false);
       return;
     }
-    if (!audio.current || audio.current.state === "closed")
-      audio.current = new AudioContext();
+    if (!audio.current || audio.current.state === "closed") {
+      const Audio =
+        window.AudioContext ||
+        (window as Window & { webkitAudioContext?: typeof AudioContext })
+          .webkitAudioContext;
+      if (!Audio)
+        throw new Error("Bu tarayıcı sipariş sesi oynatmayı desteklemiyor.");
+      audio.current = new Audio();
+      audio.current.onstatechange = () =>
+        setSound(soundRef.current && audio.current?.state === "running");
+    }
     await audio.current.resume();
     if (audio.current.state !== "running")
       throw new Error(
