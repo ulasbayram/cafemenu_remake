@@ -12,6 +12,10 @@ const assignments = [
 ];
 const now = new Date(),
   day = now.toLocaleDateString("en-CA", { timeZone: "Europe/Istanbul" });
+const daysAgo = (days) =>
+  new Date(now.getTime() - days * 86400000).toLocaleDateString("en-CA", {
+    timeZone: "Europe/Istanbul",
+  });
 const state = {
   uid: userA,
   denied: false,
@@ -55,6 +59,8 @@ const state = {
     visits: [
       { cafe: cafeA, day, hour: 12 },
       { cafe: cafeB, day, hour: 13 },
+      { cafe: cafeA, day: daysAgo(20), hour: 9 },
+      { cafe: cafeA, day: daysAgo(40), hour: 9 },
     ],
   },
 };
@@ -70,12 +76,18 @@ Object.defineProperty(state.rows, "enterprise_assignments", {
 });
 function from(table) {
   const filters = [];
+  const bounds = [];
   state.queries.push({ table, filters });
   let start = 0,
     end = 999;
   const read = () => ({
     data: state.rows[table]
       .filter((row) => filters.every(([key, value]) => row[key] === value))
+      .filter((row) =>
+        bounds.every(([key, value, direction]) =>
+          direction === "gte" ? row[key] >= value : row[key] <= value,
+        ),
+      )
       .slice(start, end + 1),
     error: null,
   });
@@ -87,10 +99,12 @@ function from(table) {
       filters.push([key, value]);
       return chain;
     },
-    gte() {
+    gte(key, value) {
+      bounds.push([key, value, "gte"]);
       return chain;
     },
-    lte() {
+    lte(key, value) {
+      bounds.push([key, value, "lte"]);
       return chain;
     },
     order() {
@@ -205,6 +219,14 @@ let payload = await response.json();
 assert.equal(payload.cafe.id, cafeA);
 assert.ok(payload.orders.every((row) => row.cafe === cafeA));
 assert.ok(payload.visits.every((row) => row.cafe === cafeA));
+assert.ok(
+  payload.visits.some((row) => row.day === daysAgo(20)),
+  "Enterprise shared statistics must include the last 30 days",
+);
+assert.ok(
+  payload.visits.every((row) => row.day >= daysAgo(29)),
+  "Older visits must stay outside the requested period",
+);
 assert.equal(JSON.stringify(payload).includes("Nova Kafe"), false);
 for (const query of state.queries.filter((query) =>
   ["orders", "visits"].includes(query.table),

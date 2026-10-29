@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./ui-fixes.css";
+import "./product-catalog.css";
+import "./menu-photos.css";
 import PwaBootstrap from "./pwa-bootstrap";
 
 export const metadata: Metadata = {

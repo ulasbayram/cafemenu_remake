@@ -23,6 +23,7 @@ import {
   type MenuLanguage,
 } from "@/lib/menu-language";
 import ItemLabels from "./item-labels";
+import MenuItemDetails from "./menu-item-details";
 import { logoSurfaceFromPixels } from "@/lib/logo";
 export type Rates = {
   USD: number;
@@ -62,6 +63,18 @@ export default function MenuView({
         editable || cafe.items.some((i) => i.category === c && i.available),
     );
   const [selected, setSelected] = useState("Tümü");
+  const [detailItem, setDetailItem] = useState<Item | null>(null);
+  const priceLabel = (item: Item) =>
+    new Intl.NumberFormat(currency === "TRY" ? "tr-TR" : "en-US", {
+      style: "currency",
+      currency,
+      minimumFractionDigits:
+        currency === "TRY" && Number.isInteger(item.price) ? 0 : 2,
+      maximumFractionDigits: 2,
+    }).format(
+      item.price *
+        (currency === "TRY" ? 1 : rates?.[currency as "USD" | "EUR"] || 1),
+    );
   const [detectedSurface, setDetectedSurface] = useState<{
     logo: string;
     color: string | null;
@@ -267,80 +280,91 @@ export default function MenuView({
               </h2>
               {cafe.items
                 .filter((i) => i.category === cat && (editable || i.available))
-                .map((item) => (
-                  <ItemTag
-                    data-menu-block={`item:${item.id}`}
-                    className={`menu-item ${!item.available ? "unavailable" : ""} ${blockClass(`item:${item.id}`)}`}
-                    key={item.id}
-                    onClick={
-                      contentEditable
-                        ? () => {
-                            onEdit?.(item);
-                            onSelectBlock?.(`item:${item.id}`);
-                          }
-                        : undefined
-                    }
-                    aria-label={
-                      contentEditable
-                        ? `${item.name || "Yeni ürün"} ürününü düzenle`
-                        : undefined
-                    }
-                  >
-                    {blockIsEditable(`item:${item.id}`) && (
-                      <span className="block-label">Ürün</span>
-                    )}
-                    <span>
-                      <strong>
-                        {itemName(item, language) ||
-                          text("Yeni ürün", "New item")}
-                      </strong>
+                .map((item) => {
+                  const CopyTag = item.photo && !editable ? "button" : "span";
+                  return (
+                    <ItemTag
+                      data-menu-block={`item:${item.id}`}
+                      className={`menu-item ${item.photo ? "menu-item-with-photo" : ""} ${!item.available ? "unavailable" : ""} ${blockClass(`item:${item.id}`)}`}
+                      key={item.id}
+                      onClick={
+                        contentEditable
+                          ? () => {
+                              onEdit?.(item);
+                              onSelectBlock?.(`item:${item.id}`);
+                            }
+                          : item.photo && !editable
+                            ? () => setDetailItem(item)
+                            : undefined
+                      }
+                      aria-label={
+                        contentEditable
+                          ? `${item.name || "Yeni ürün"} ürününü düzenle`
+                          : undefined
+                      }
+                    >
+                      {blockIsEditable(`item:${item.id}`) && (
+                        <span className="block-label">Ürün</span>
+                      )}
                       {item.photo && (
-                        <img
-                          className="item-photo"
-                          src={item.photo}
-                          alt=""
-                          loading="lazy"
-                        />
+                        <span className="item-photo-frame" aria-hidden="true">
+                          <img
+                            className="item-photo"
+                            src={item.photo}
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                            width={64}
+                            height={64}
+                          />
+                        </span>
                       )}
-                      <small>{itemDescription(item, language)}</small>
-                      <ItemLabels item={item} language={language} />
-                      {!item.available && <em>Menüde gizli</em>}
-                    </span>
-                    <b>
-                      {new Intl.NumberFormat(
-                        currency === "TRY" ? "tr-TR" : "en-US",
-                        {
-                          style: "currency",
-                          currency,
-                          minimumFractionDigits:
-                            currency === "TRY" && Number.isInteger(item.price)
-                              ? 0
-                              : 2,
-                          maximumFractionDigits: 2,
-                        },
-                      ).format(
-                        item.price *
-                          (currency === "TRY"
-                            ? 1
-                            : rates?.[currency as "USD" | "EUR"] || 1),
-                      )}
-                    </b>
-                    {onAddToOrder && (
-                      <button
-                        type="button"
-                        className="menu-order-add"
-                        onClick={() => onAddToOrder(item)}
+                      <CopyTag
+                        className="item-copy"
+                        type={CopyTag === "button" ? "button" : undefined}
+                        aria-haspopup={
+                          CopyTag === "button" ? "dialog" : undefined
+                        }
                         aria-label={
-                          language === "en"
-                            ? `Add ${itemName(item, language)} to order`
-                            : `${item.name} ürününü siparişe ekle`
+                          CopyTag === "button"
+                            ? `${itemName(item, language)} · ${text("Ürün ayrıntıları", "Product details")}`
+                            : undefined
+                        }
+                        onClick={
+                          CopyTag === "button"
+                            ? () => setDetailItem(item)
+                            : undefined
                         }
                       >
-                        <Plus size={15} /> {text("Ekle", "Add")}
-                      </button>
-                    )}
-                  </ItemTag>
-                ))}
+                        <strong>
+                          {itemName(item, language) ||
+                            text("Yeni ürün", "New item")}
+                        </strong>
+                        <small>{itemDescription(item, language)}</small>
+                        <ItemLabels item={item} language={language} />
+                        {!item.available && <em>Menüde gizli</em>}
+                      </CopyTag>
+                      <b>{priceLabel(item)}</b>
+                      {onAddToOrder && (
+                        <button
+                          type="button"
+                          className="menu-order-add"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onAddToOrder(item);
+                          }}
+                          aria-label={
+                            language === "en"
+                              ? `Add ${itemName(item, language)} to order`
+                              : `${item.name} ürününü siparişe ekle`
+                          }
+                        >
+                          <Plus size={15} /> {text("Ekle", "Add")}
+                        </button>
+                      )}
+                    </ItemTag>
+                  );
+                })}
             </section>
           ))}
         {!cafe.items.length && (
@@ -389,6 +413,22 @@ export default function MenuView({
         <span>{text("fincan ile hazırlandı", "made with fincan")}</span>
         {onSelectBlock && <LockKeyhole size={12} />}
       </footer>
+      {detailItem && (
+        <MenuItemDetails
+          item={detailItem}
+          language={language}
+          price={priceLabel(detailItem)}
+          onClose={() => setDetailItem(null)}
+          onAdd={
+            onAddToOrder
+              ? () => {
+                  onAddToOrder(detailItem);
+                  setDetailItem(null);
+                }
+              : undefined
+          }
+        />
+      )}
     </div>
   );
 }

@@ -17,18 +17,28 @@ import {
   Info,
   RefreshCw,
   Puzzle,
+  Store,
+  BookOpen,
+  Package,
+  ScanLine,
+  Settings,
 } from "lucide-react";
 import { api } from "@/lib/client-api";
 import { supabase } from "@/lib/supabase-browser";
-import VisitChart from "@/app/visit-chart";
+import Dashboard, { type Tab } from "@/app/dashboard";
 import PackageAOrders from "./order-workspace";
 import type { PackageAData } from "./types";
 import styles from "./dashboard.module.css";
 const tabs = [
   { key: "overview", label: "Genel bakış", icon: Building2 },
+  { key: "cafes", label: "İşletme bilgileri ve QR", icon: Store },
+  { key: "menus", label: "Menü tasarımı", icon: BookOpen },
+  { key: "products", label: "Ürünler", icon: Package },
   { key: "orders", label: "Siparişler", icon: ClipboardList },
+  { key: "import", label: "Menü yapıştır", icon: ScanLine },
   { key: "insights", label: "İstatistikler", icon: ChartNoAxesCombined },
   { key: "extension", label: "Özel özellikler", icon: Puzzle },
+  { key: "settings", label: "Hesap ve kullanım", icon: Settings },
 ] as const;
 const money = (value: number) =>
   value.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
@@ -37,14 +47,27 @@ export default function PackageADashboard({
   preview,
   initialData,
   requestedCafe,
+  initialView,
 }: {
   preview: boolean;
   initialData: PackageAData | null;
   requestedCafe?: string;
+  initialView?: string;
 }) {
   const router = useRouter();
   const [data, setData] = useState(initialData);
-  const [tab, setTab] = useState<(typeof tabs)[number]["key"]>("overview");
+  const [tab, setTab] = useState<(typeof tabs)[number]["key"]>(
+    tabs.find((entry) => entry.key === initialView)?.key ?? "overview",
+  );
+  function navigate(next: (typeof tabs)[number]["key"]) {
+    setTab(next);
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", next);
+    window.history.replaceState(null, "", url);
+  }
+  function navigateShared(next: Tab) {
+    navigate(next === "stats" ? "insights" : next);
+  }
   const [loading, setLoading] = useState(!preview),
     [error, setError] = useState("");
   const endpoint = `/api/enterprise/package-a${requestedCafe ? `?cafe=${encodeURIComponent(requestedCafe)}` : ""}`;
@@ -90,19 +113,38 @@ export default function PackageADashboard({
     }
   }
   const cafe = data?.cafe;
+  const since = new Date(
+    new Date(`${data?.today ?? "1970-01-01"}T12:00:00+03:00`).getTime() -
+      6 * 86400000,
+  ).toLocaleDateString("en-CA", { timeZone: "Europe/Istanbul" });
   const visitCount =
-    data?.visits.reduce((sum, visit) => sum + visit.count, 0) ?? 0;
+    data?.visits
+      .filter((visit) => visit.day >= since)
+      .reduce((sum, visit) => sum + visit.count, 0) ?? 0;
   const activeOrders =
-    data?.orders.filter((order) => order.status !== "completed") ?? [];
+    data?.orders.filter(
+      (order) =>
+        order.status !== "completed" && order.createdAt.slice(0, 10) >= since,
+    ) ?? [];
   const revenue =
     data?.orders
-      .filter((order) => order.status === "completed")
+      .filter(
+        (order) =>
+          order.status === "completed" && order.createdAt.slice(0, 10) >= since,
+      )
       .reduce((sum, order) => sum + order.total, 0) ?? 0;
 
   return (
-    <main className={styles.shell}>
+    <main className={styles.shell} data-theme="dark">
       <aside className={styles.sidebar}>
-        <NavLink href="/?view=overview" className={styles.brand}>
+        <NavLink
+          href={
+            preview
+              ? `/enterprise/package-a?preview=1&scenario=${cafe?.id === "preview-nova" ? "nova" : "ortak"}`
+              : `/enterprise/package-a${cafe ? `?cafe=${encodeURIComponent(cafe.id)}` : ""}`
+          }
+          className={styles.brand}
+        >
           <Coffee size={24} />
           fincan<span>enterprise</span>
         </NavLink>
@@ -121,7 +163,7 @@ export default function PackageADashboard({
               key={entry.key}
               aria-current={tab === entry.key ? "page" : undefined}
               className={tab === entry.key ? styles.active : ""}
-              onClick={() => setTab(entry.key)}
+              onClick={() => navigate(entry.key)}
             >
               <entry.icon size={19} />
               {entry.label}
@@ -144,9 +186,12 @@ export default function PackageADashboard({
             <Crown size={15} />
             PAKET A · ENTERPRISE
           </span>
-          <NavLink href="/?view=overview">
-            Standart panel <ArrowUpRight size={15} />
-          </NavLink>
+          <button
+            className={styles.refresh}
+            onClick={() => navigate("settings")}
+          >
+            Hesap ve kullanım <Settings size={15} />
+          </button>
         </header>
         <div className={styles.content}>
           {preview && (
@@ -278,7 +323,7 @@ export default function PackageADashboard({
                           {tabs.slice(1).map((entry) => (
                             <button
                               key={entry.key}
-                              onClick={() => setTab(entry.key)}
+                              onClick={() => navigate(entry.key)}
                             >
                               <span>
                                 <entry.icon size={23} />
@@ -332,7 +377,7 @@ export default function PackageADashboard({
                               sipariş
                             </span>
                           </div>
-                          <button onClick={() => setTab("orders")}>
+                          <button onClick={() => navigate("orders")}>
                             Siparişler <ChevronRight size={16} />
                           </button>
                         </article>
@@ -353,18 +398,29 @@ export default function PackageADashboard({
                     onChanged={() => void refresh()}
                   />
                 )}
-                {tab === "insights" && (
-                  <section className={styles.chartContainer}>
-                    <VisitChart
-                      visits={data.visits}
-                      days={7}
-                      today={data.today}
-                      cafes={[cafe]}
-                      loading={false}
-                      title={`${cafe.name} · Ziyaretler`}
-                      showTotal
-                    />
-                  </section>
+                {[
+                  "cafes",
+                  "menus",
+                  "products",
+                  "import",
+                  "insights",
+                  "settings",
+                ].includes(tab) && (
+                  <Dashboard
+                    key={`${cafe.id}-${tab}`}
+                    initialTab={tab === "insights" ? "stats" : (tab as Tab)}
+                    workspace={{
+                      cafe,
+                      preview,
+                      visits: data.visits,
+                      orders: data.orders,
+                      onSaved: (saved) =>
+                        setData((current) =>
+                          current ? { ...current, cafe: saved } : current,
+                        ),
+                      onNavigate: navigateShared,
+                    }}
+                  />
                 )}
                 {tab === "extension" && (
                   <section className={styles.panel}>
@@ -377,9 +433,15 @@ export default function PackageADashboard({
                     </header>
                     <p className={styles.caption}>
                       Manuel sipariş ekleme ve ürün, adet, fiyat, masa düzenleme
-                      bu pakete özeldir. Araçları Siparişler ekranında kullanabilirsiniz.
+                      bu pakete özeldir. Araçları Siparişler ekranında
+                      kullanabilirsiniz.
                     </p>
-                    <button className={styles.refresh} onClick={() => setTab("orders")}>Sipariş araçlarını aç <ChevronRight size={16} /></button>
+                    <button
+                      className={styles.refresh}
+                      onClick={() => navigate("orders")}
+                    >
+                      Sipariş araçlarını aç <ChevronRight size={16} />
+                    </button>
                   </section>
                 )}
               </>

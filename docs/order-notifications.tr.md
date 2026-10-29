@@ -8,6 +8,8 @@ Supabase Realtime, işletmenin sipariş değişikliklerini anında iletir. Bağl
 
 “Sipariş sesini aç” düğmesi tarayıcının kullanıcı etkileşimi şartını karşılar ve bir deneme sesi çalar. İlk yüklemede eski siparişlere ses verilmez. Yeni siparişler için ses ve ekran mesajı üretilir. Cihaz veya tarayıcı ses oynatmayı duraklatırsa düğmeden yeniden etkinleştirin.
 
+Açık ekrandaki ses, yaklaşık 1,6 saniyelik ve iki kez çalan çift tonlu zildir. Önceki kısa sinüs melodisine göre ses seviyesi artırılmış, küçük hoparlörlerde ayırt edilmesi için ek armonik kullanılmıştır. Ses açma düğmesi yeni tonu da denetir. Bu değişiklik işletim sisteminin kilit ekranı bildirim tonunu veya cihazın ses düzeyini değiştirmez.
+
 ## Arka plan bildirimlerini etkinleştirme
 
 1. Supabase SQL Editor'da `supabase/migrations/0004_order_notifications.sql` dosyasını uygulayın. Bu işlem cihaz abonelik tablosunu oluşturur ve sipariş tablosunu Realtime yayınına ekler. Kayıtlar yalnızca server service role ile erişilir.

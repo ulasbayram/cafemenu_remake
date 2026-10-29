@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     const cafeId = assignment.cafeId,
       client = asUser(jwt);
     const today = istanbulDay(new Date()),
-      since = istanbulDay(new Date(Date.now() - 6 * 86400000));
+      since = istanbulDay(new Date(Date.now() - 29 * 86400000));
     const { data: cafe, error } = await client
       .from("cafes")
       .select(

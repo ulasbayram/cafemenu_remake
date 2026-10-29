@@ -56,7 +56,8 @@ import OrdersManager from "./orders-manager";
 import VisitChart from "./visit-chart";
 import EnterpriseNavigation from "@/enterprise/navigation";
 import ModuleNavigation from "@/modules/navigation";
-type Tab =
+import MenuEditor from "./editor/menu-editor";
+export type Tab =
   | "overview"
   | "cafes"
   | "menus"
@@ -113,8 +114,17 @@ function Modal({
 }
 export default function Dashboard({
   initialTab = "overview",
+  workspace,
 }: {
   initialTab?: Tab;
+  workspace?: {
+    cafe: Cafe;
+    preview: boolean;
+    onSaved: (cafe: Cafe) => void;
+    onNavigate: (tab: Tab) => void;
+    visits?: Stat[];
+    orders?: OrderRow[];
+  };
 }) {
   const router = useRouter();
   const sidebarRef = useRef<HTMLElement>(null);
@@ -123,9 +133,9 @@ export default function Dashboard({
   const [cafeDetails, setCafeDetails] = useState<Cafe | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [tab, setTab] = useState<Tab>(initialTab),
-    [cafes, setCafes] = useState<Cafe[]>([]),
-    [stats, setStats] = useState<Stat[]>([]),
-    [orderStats, setOrderStats] = useState<OrderRow[]>([]),
+    [cafes, setCafes] = useState<Cafe[]>(workspace ? [workspace.cafe] : []),
+    [stats, setStats] = useState<Stat[]>(workspace?.visits ?? []),
+    [orderStats, setOrderStats] = useState<OrderRow[]>(workspace?.orders ?? []),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
     [toast, setToast] = useState(""),
@@ -151,6 +161,8 @@ export default function Dashboard({
     [importItems, setImportItems] = useState<Item[]>([]),
     [scanCafe, setScanCafe] = useState(""),
     [detailsBusy, setDetailsBusy] = useState(false);
+  const [inlineEditor, setInlineEditor] = useState<Cafe | null>(null);
+  const initialWorkspace = useRef(workspace);
   const now = new Date();
   const dateLabel = now.toLocaleDateString("tr-TR", {
     day: "numeric",
@@ -164,6 +176,12 @@ export default function Dashboard({
   useEffect(() => {
     let active = true;
     async function initialize() {
+      const scoped = initialWorkspace.current;
+      if (scoped?.preview) {
+        setUser({ name: "Örnek işletme yöneticisi", email: "" });
+        setLoading(false);
+        return;
+      }
       const { supabase } = await import("@/lib/supabase-browser");
       let session: { name: string; email: string } | null = null;
       try {
@@ -188,6 +206,10 @@ export default function Dashboard({
         return;
       }
       if (active) setUser(session);
+      if (scoped) {
+        if (active) setLoading(false);
+        return;
+      }
       try {
         const [c, s, o] = await Promise.all([
           api<Cafe[]>("/api/cafes"),
@@ -281,6 +303,10 @@ export default function Dashboard({
   }, [mobile]);
 
   function navigate(t: Tab) {
+    if (workspace) {
+      workspace.onNavigate(t);
+      return;
+    }
     setTab(t);
     window.history.replaceState(
       null,
@@ -291,6 +317,10 @@ export default function Dashboard({
     setError("");
   }
   function startCreate() {
+    if (workspace?.preview) {
+      setToast("Önizlemede yeni işletme oluşturulmaz.");
+      return;
+    }
     if (!signedIn) {
       window.location.assign(new URL("/login", window.location.origin).href);
       return;
@@ -306,6 +336,8 @@ export default function Dashboard({
     setBusy(true);
     setError("");
     try {
+      if (workspace?.preview)
+        throw new Error("Önizlemede yeni işletme oluşturulmaz.");
       const normalizedSlug = cafeSlug(newSlug, newName);
       setNewSlug(normalizedSlug);
       const c = await api<Cafe>("/api/cafes", {
@@ -319,8 +351,14 @@ export default function Dashboard({
         tableCount: 0,
         items: withSample ? sampleItems : [],
       });
-      setCafes((p) => [c, ...p]);
       setCreate(false);
+      if (workspace) {
+        setToast(
+          `${c.name} hesabınıza eklendi. Enterprise çalışma alanında kullanmak için yöneticinizin bu işletmeye ayrıca paket ataması gerekir.`,
+        );
+        return;
+      }
+      setCafes((p) => [c, ...p]);
       setTab("cafes");
       setToast("İşletmeniz ve QR kodunuz hazır. Menünüzü düzenleyebilirsiniz.");
     } catch (e) {
@@ -330,17 +368,23 @@ export default function Dashboard({
     }
   }
   function openEditor(c: Cafe) {
-    router.push(`/editor/${c.id}`);
+    if (workspace) setInlineEditor(c);
+    else router.push(`/editor/${c.id}`);
+  }
+  async function persistCafe(cafe: Cafe) {
+    if (workspace && cafe.id !== workspace.cafe.id)
+      throw new Error("Bu işletme çalışma alanının dışında.");
+    const updated = workspace?.preview
+      ? structuredClone(cafe)
+      : await api<Cafe>(`/api/cafes/${cafe.id}`, cafe, "PUT");
+    workspace?.onSaved(updated);
+    return updated;
   }
   async function saveCafeDetails() {
     if (!cafeDetails) return;
     setDetailsBusy(true);
     try {
-      const updated = await api<Cafe>(
-        `/api/cafes/${cafeDetails.id}`,
-        cafeDetails,
-        "PUT",
-      );
+      const updated = await persistCafe(cafeDetails);
       setCafes((p) => p.map((c) => (c.id === updated.id ? updated : c)));
       setCafeDetails(null);
       setToast("İşletme bilgileri kaydedildi.");
@@ -370,11 +414,10 @@ export default function Dashboard({
     }
     setBusy(true);
     try {
-      const updated = await api<Cafe>(
-        `/api/cafes/${c.id}`,
-        { ...c, items: [...c.items, ...importItems] },
-        "PUT",
-      );
+      const updated = await persistCafe({
+        ...c,
+        items: [...c.items, ...importItems],
+      });
       setCafes((p) => p.map((x) => (x.id === c.id ? updated : x)));
       setImportItems([]);
       setRawText("");
@@ -434,137 +477,163 @@ export default function Dashboard({
     stats: "Menünüzün nabzını tutun.",
     settings: "Hesap ve kullanım",
   };
+  if (inlineEditor && workspace)
+    return (
+      <div className="embedded-menu-editor">
+        <MenuEditor
+          initialCafe={inlineEditor}
+          persistCafe={persistCafe}
+          preview={workspace.preview}
+          onBack={() => setInlineEditor(null)}
+          onSaved={(saved) => {
+            setCafes([saved]);
+            setInlineEditor(saved);
+          }}
+        />
+      </div>
+    );
   return (
-    <div className="app-shell">
-      <button
-        className={`sidebar-backdrop ${mobile ? "visible" : ""}`}
-        tabIndex={-1}
-        aria-hidden="true"
-        onClick={() => setMobile(false)}
-      />
-      <aside
-        id="dashboard-sidebar"
-        ref={sidebarRef}
-        aria-label="Ana gezinme"
-        className={`sidebar ${mobile ? "mobile-open" : ""}`}
-      >
-        <button
-          ref={sidebarBackRef}
-          className="sidebar-back"
-          onClick={() => setMobile(false)}
-          aria-label="Geri, gezinmeyi kapat"
-        >
-          <ArrowLeft size={18} /> Geri
-        </button>
-        <NavLink className="brand" href="/?view=overview">
-          <span>
-            <Coffee size={24} />
-          </span>
-          fincan<span className="brand-period">.</span>
-        </NavLink>
-        <div className="workspace-label">ÇALIŞMA ALANINIZ</div>
-        <button className="workspace-switch" onClick={() => navigate("cafes")}>
-          <span className="workspace-icon">
-            <Store size={18} />
-          </span>
-          <span>
-            <strong>İşletme yönetimi</strong>
-            <small>{cafes.length} işletme · Kişisel hesap</small>
-          </span>
-          <ChevronDown size={15} />
-        </button>
-        <div className="nav-label">YÖNETİM</div>
-        <nav>
-          {nav.map((n) => (
-            <button
-              key={n.id}
-              className={tab === n.id ? "active" : ""}
-              onClick={() => navigate(n.id)}
-            >
-              <n.icon size={19} />
-              <span>{n.label}</span>
-              {n.id === "import" && <span className="nav-badge">ÜCRETSİZ</span>}
-              {n.id === "cafes" && cafes.length > 0 && (
-                <span className="nav-count">{cafes.length}</span>
-              )}
-            </button>
-          ))}
-        </nav>
-        {signedIn && <EnterpriseNavigation />}
-        {signedIn && <ModuleNavigation />}
-        <div className="sidebar-bottom">
-          <div className="small-promo">
-            <span className="promo-icon">
-              <QrCode size={21} />
-            </span>
-            <h3>Bir QR. Koca bir menü.</h3>
-            <p>
-              Menünüz değişsin,
-              <br />
-              QR kodunuz aynı kalsın.
-            </p>
-            <button onClick={() => navigate("cafes")}>
-              QR kodlarım <ArrowUpRight size={15} />
-            </button>
-          </div>
+    <div className={`app-shell${workspace ? " dashboard-embedded" : ""}`}>
+      {!workspace && (
+        <>
           <button
-            className={`settings-nav ${tab === "settings" ? "active" : ""}`}
-            onClick={() => navigate("settings")}
+            className={`sidebar-backdrop ${mobile ? "visible" : ""}`}
+            tabIndex={-1}
+            aria-hidden="true"
+            onClick={() => setMobile(false)}
+          />
+          <aside
+            id="dashboard-sidebar"
+            ref={sidebarRef}
+            aria-label="Ana gezinme"
+            className={`sidebar ${mobile ? "mobile-open" : ""}`}
           >
-            <Settings size={18} />
-            Ayarlar
-          </button>
-          <div className="profile">
-            <span className="avatar">
-              {signedIn ? userName.slice(0, 1).toUpperCase() : "K"}
-            </span>
-            <span>
-              <strong>{userName}</strong>
-              <small>
-                {signedIn ? "Kişisel hesap" : "Başlamak için giriş yapın"}
-              </small>
-            </span>
-            {!signedIn && (
-              <a href="/login" title="Giriş yap">
-                <LogIn size={17} />
-              </a>
-            )}
-          </div>
-        </div>
-      </aside>
+            <button
+              ref={sidebarBackRef}
+              className="sidebar-back"
+              onClick={() => setMobile(false)}
+              aria-label="Geri, gezinmeyi kapat"
+            >
+              <ArrowLeft size={18} /> Geri
+            </button>
+            <NavLink className="brand" href="/?view=overview">
+              <span>
+                <Coffee size={24} />
+              </span>
+              fincan<span className="brand-period">.</span>
+            </NavLink>
+            <div className="workspace-label">ÇALIŞMA ALANINIZ</div>
+            <button
+              className="workspace-switch"
+              onClick={() => navigate("cafes")}
+            >
+              <span className="workspace-icon">
+                <Store size={18} />
+              </span>
+              <span>
+                <strong>İşletme yönetimi</strong>
+                <small>{cafes.length} işletme · Kişisel hesap</small>
+              </span>
+              <ChevronDown size={15} />
+            </button>
+            <div className="nav-label">YÖNETİM</div>
+            <nav>
+              {nav.map((n) => (
+                <button
+                  key={n.id}
+                  className={tab === n.id ? "active" : ""}
+                  onClick={() => navigate(n.id)}
+                >
+                  <n.icon size={19} />
+                  <span>{n.label}</span>
+                  {n.id === "import" && (
+                    <span className="nav-badge">ÜCRETSİZ</span>
+                  )}
+                  {n.id === "cafes" && cafes.length > 0 && (
+                    <span className="nav-count">{cafes.length}</span>
+                  )}
+                </button>
+              ))}
+            </nav>
+            {signedIn && <EnterpriseNavigation />}
+            {signedIn && <ModuleNavigation />}
+            <div className="sidebar-bottom">
+              <div className="small-promo">
+                <span className="promo-icon">
+                  <QrCode size={21} />
+                </span>
+                <h3>Bir QR. Koca bir menü.</h3>
+                <p>
+                  Menünüz değişsin,
+                  <br />
+                  QR kodunuz aynı kalsın.
+                </p>
+                <button onClick={() => navigate("cafes")}>
+                  QR kodlarım <ArrowUpRight size={15} />
+                </button>
+              </div>
+              <button
+                className={`settings-nav ${tab === "settings" ? "active" : ""}`}
+                onClick={() => navigate("settings")}
+              >
+                <Settings size={18} />
+                Ayarlar
+              </button>
+              <div className="profile">
+                <span className="avatar">
+                  {signedIn ? userName.slice(0, 1).toUpperCase() : "K"}
+                </span>
+                <span>
+                  <strong>{userName}</strong>
+                  <small>
+                    {signedIn ? "Kişisel hesap" : "Başlamak için giriş yapın"}
+                  </small>
+                </span>
+                {!signedIn && (
+                  <a href="/login" title="Giriş yap">
+                    <LogIn size={17} />
+                  </a>
+                )}
+              </div>
+            </div>
+          </aside>
+        </>
+      )}
       <div className="workspace" inert={mobile}>
-        <header className="topbar">
-          <div className="breadcrumb">
-            <button
-              className="icon-btn mobile-toggle"
-              ref={menuToggleRef}
-              onClick={() => setMobile(true)}
-              aria-label="Gezinmeyi aç"
-              aria-expanded={mobile}
-              aria-controls="dashboard-sidebar"
-            >
-              <Menu size={21} />
-            </button>
-            <span>Çalışma alanı</span>
-            <ChevronRight size={14} />
-            <strong>{heading[tab]}</strong>
-          </div>
-          <div className="topbar-right">
-            <ThemeToggle />
-            <span className="live-label">
-              <span /> Her şey bir fincanla başlar
-            </span>
-            <button
-              type="button"
-              className="avatar small profile-trigger"
-              aria-label="Hesap bilgilerini görüntüle"
-              aria-haspopup="dialog"
-              onClick={() => setProfileOpen(true)}
-            >
-              {userName.slice(0, 1).toUpperCase()}
-            </button>
-          </div>
-        </header>
+        {!workspace && (
+          <header className="topbar">
+            <div className="breadcrumb">
+              <button
+                className="icon-btn mobile-toggle"
+                ref={menuToggleRef}
+                onClick={() => setMobile(true)}
+                aria-label="Gezinmeyi aç"
+                aria-expanded={mobile}
+                aria-controls="dashboard-sidebar"
+              >
+                <Menu size={21} />
+              </button>
+              <span>Çalışma alanı</span>
+              <ChevronRight size={14} />
+              <strong>{heading[tab]}</strong>
+            </div>
+            <div className="topbar-right">
+              <ThemeToggle />
+              <span className="live-label">
+                <span /> Her şey bir fincanla başlar
+              </span>
+              <button
+                type="button"
+                className="avatar small profile-trigger"
+                aria-label="Hesap bilgilerini görüntüle"
+                aria-haspopup="dialog"
+                onClick={() => setProfileOpen(true)}
+              >
+                {userName.slice(0, 1).toUpperCase()}
+              </button>
+            </div>
+          </header>
+        )}
         <main className="main-content" key={tab}>
           {error && (
             <div className="error-banner" role="alert">
@@ -605,6 +674,11 @@ export default function Dashboard({
                 </p>
               </div>
               <div className="heading-actions">
+                {workspace && tab === "settings" && (
+                  <button className="btn" onClick={() => setProfileOpen(true)}>
+                    Hesap bilgileri
+                  </button>
+                )}
                 {tab === "stats" && (
                   <span className="date-chip">
                     <CalendarDays size={16} />
@@ -616,7 +690,11 @@ export default function Dashboard({
                   tab !== "menus" &&
                   tab !== "products" &&
                   tab !== "orders" && (
-                    <button className="btn primary" onClick={startCreate}>
+                    <button
+                      className="btn primary"
+                      onClick={startCreate}
+                      disabled={workspace?.preview}
+                    >
                       <Plus size={18} /> Yeni işletme ekle
                     </button>
                   )}
@@ -1147,6 +1225,8 @@ export default function Dashboard({
                 onCreateCafe={startCreate}
                 onError={setError}
                 onToast={setToast}
+                persistCafe={workspace ? persistCafe : undefined}
+                preview={workspace?.preview}
               />
             )}
             {tab === "orders" && (
@@ -1313,7 +1393,11 @@ export default function Dashboard({
                       ? `${userName} olarak giriş yaptınız.`
                       : "İşletmelerinizi kaydetmek için giriş yapın."}
                   </p>
-                  <button className="btn" onClick={logout}>
+                  <button
+                    className="btn"
+                    onClick={logout}
+                    disabled={workspace?.preview}
+                  >
                     Çıkış yap <LogIn size={16} />
                   </button>
                   <div className="divider" />
@@ -1734,6 +1818,7 @@ export default function Dashboard({
             <button
               className="btn full"
               disabled={!qrUrl}
+              hidden={workspace?.preview}
               onClick={() => {
                 setQr(null);
                 window.location.assign(`/print/qr-sheet/${qr.id}`);

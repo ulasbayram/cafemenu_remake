@@ -34,10 +34,16 @@ export default function MenuEditor({
   initialCafe,
   access = "owner",
   onSaved,
+  onBack,
+  persistCafe,
+  preview = false,
 }: {
   initialCafe: Cafe;
   access?: "owner" | "admin";
   onSaved?: (cafe: Cafe) => void;
+  onBack?: () => void;
+  persistCafe?: (cafe: Cafe) => Promise<Cafe>;
+  preview?: boolean;
 }) {
   const router = useRouter();
   const adminApi = useAdminApi();
@@ -113,6 +119,10 @@ export default function MenuEditor({
     setCafe((c) => ({ ...c, ...p }));
   }
   async function uploadLogo(file?: File) {
+    if (preview) {
+      setError("Önizlemede logo yükleme kapalıdır.");
+      return;
+    }
     if (!file) return;
     setLogoBusy(true);
     setError("");
@@ -153,8 +163,9 @@ export default function MenuEditor({
     setBusy(true);
     setError("");
     try {
-      const data =
-        access === "admin"
+      const data = persistCafe
+        ? await persistCafe(cafe)
+        : access === "admin"
           ? await adminApi<Cafe>(`/api/admin/cafes/${cafe.id}`, {
               body: cafe,
               method: "PUT",
@@ -175,7 +186,8 @@ export default function MenuEditor({
   function back() {
     if (dirty && !window.confirm("Kaydedilmemiş değişiklikler silinsin mi?"))
       return;
-    router.push(access === "admin" ? "/admin" : "/?view=menus");
+    if (onBack) onBack();
+    else router.push(access === "admin" ? "/admin" : "/?view=menus");
   }
   return (
     <div className="menu-studio">

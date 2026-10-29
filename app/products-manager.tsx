@@ -4,6 +4,8 @@ import AppSelect from "@/components/app-select";
 /* eslint-disable @next/next/no-img-element -- Product photos use public Supabase Storage URLs. */
 import {
   useMemo,
+  useRef,
+  useEffect,
   useState,
   type Dispatch,
   type FormEvent,
@@ -39,6 +41,8 @@ type Props = {
   onError: (message: string) => void;
   onToast: (message: string) => void;
   access?: "owner" | "admin";
+  persistCafe?: (cafe: Cafe) => Promise<Cafe>;
+  preview?: boolean;
 };
 
 const emptyItem = (category: string): Item => ({
@@ -58,12 +62,16 @@ export default function ProductsManager({
   onError,
   onToast,
   access = "owner",
+  persistCafe,
+  preview = false,
 }: Props) {
   const adminApi = useAdminApi();
   const saveCafe = (id: string, body: Cafe, method: "PUT") =>
-    access === "admin"
-      ? adminApi<Cafe>(`/api/admin/cafes/${id}`, { body, method })
-      : api<Cafe>(`/api/cafes/${id}`, body, method);
+    persistCafe
+      ? persistCafe(body)
+      : access === "admin"
+        ? adminApi<Cafe>(`/api/admin/cafes/${id}`, { body, method })
+        : api<Cafe>(`/api/cafes/${id}`, body, method);
   const [cafeId, setCafeId] = useState(cafes[0]?.id ?? "");
   const source = cafes.find((cafe) => cafe.id === cafeId) ?? cafes[0] ?? null;
   const [draft, setDraft] = useState<Cafe | null>(
@@ -77,6 +85,22 @@ export default function ProductsManager({
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [formError, setFormError] = useState("");
+  const dialog = useRef<HTMLDialogElement>(null);
+  const editingOpen = !!editing;
+  useEffect(() => {
+    if (!editingOpen) return;
+    dialog.current?.showModal();
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = overflow;
+    };
+  }, [editingOpen]);
+  function closeEditor() {
+    setEditing(null);
+    setFormError("");
+  }
 
   const categories = draft ? menuCategories(draft) : [];
   const dirty =
@@ -103,7 +127,7 @@ export default function ProductsManager({
     setCafeId(id);
     setDraft(next ? structuredClone(next) : null);
     setCategory("all");
-    setEditing(null);
+    closeEditor();
   }
 
   function updateItem(item: Item) {
@@ -124,7 +148,7 @@ export default function ProductsManager({
           }
         : current,
     );
-    setEditing(null);
+    closeEditor();
   }
 
   function addCategory(event: FormEvent) {
@@ -387,7 +411,7 @@ export default function ProductsManager({
               <span>İlk ürünü ekleyerek başlayın.</span>
             </div>
           ) : (
-            <div className="product-rows">
+            <div className="product-rows product-catalog-grid">
               {visibleItems.map((item) => {
                 const categoryItems = draft.items.filter(
                   (entry) => entry.category === item.category,
@@ -408,7 +432,12 @@ export default function ProductsManager({
                       )}
                     </span>
                     <div>
-                      <strong>{item.name}</strong>
+                      <button
+                        className="product-card-title"
+                        onClick={() => setEditing(structuredClone(item))}
+                      >
+                        <strong>{item.name}</strong>
+                      </button>
                       <small>{item.description || "Açıklama eklenmemiş"}</small>
                       <em>{item.category}</em>
                       <ItemLabels item={item} />
@@ -469,9 +498,18 @@ export default function ProductsManager({
       </div>
 
       {editing && (
-        <div
-          className="product-editor-overlay"
-          onMouseDown={() => !photoBusy && setEditing(null)}
+        <dialog
+          ref={dialog}
+          className="product-dialog"
+          aria-labelledby="product-editor-title"
+          onCancel={(event) => {
+            event.preventDefault();
+            if (!photoBusy) closeEditor();
+          }}
+          onClick={(event) => {
+            if (event.target === event.currentTarget && !photoBusy)
+              closeEditor();
+          }}
         >
           <form
             className="product-editor"
@@ -480,7 +518,7 @@ export default function ProductsManager({
               event.preventDefault();
               const result = itemSchema.safeParse(editing);
               if (!result.success) {
-                onError(result.error.issues[0].message);
+                setFormError(result.error.issues[0].message);
                 return;
               }
               updateItem(result.data);
@@ -489,7 +527,7 @@ export default function ProductsManager({
             <header>
               <div>
                 <span className="eyebrow">ÜRÜN BİLGİLERİ</span>
-                <h2>
+                <h2 id="product-editor-title">
                   {draft.items.some((item) => item.id === editing.id)
                     ? "Ürünü düzenle"
                     : "Yeni ürün"}
@@ -498,178 +536,193 @@ export default function ProductsManager({
               <button
                 type="button"
                 aria-label="Kapat"
-                onClick={() => setEditing(null)}
+                disabled={photoBusy}
+                onClick={closeEditor}
               >
                 <X size={19} />
               </button>
             </header>
-            <label>
-              Ürün fotoğrafı
-              <div className="product-photo-editor">
-                <span>
-                  {editing.photo ? (
-                    <img src={editing.photo} alt="" />
-                  ) : (
-                    <Camera size={22} />
-                  )}
-                </span>
-                <div>
-                  <label className="btn">
-                    {photoBusy
-                      ? "Yükleniyor…"
-                      : editing.photo
-                        ? "Değiştir"
-                        : "Fotoğraf yükle"}
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      disabled={photoBusy}
-                      onChange={async (event) => {
-                        const file = event.target.files?.[0];
-                        event.target.value = "";
-                        if (!file) return;
-                        setPhotoBusy(true);
-                        try {
-                          const blob = await preparePhoto(file);
-                          const photo = await uploadImage(blob, "photos");
-                          setEditing((current) =>
-                            current ? { ...current, photo } : current,
-                          );
-                        } catch (error) {
-                          onError((error as Error).message);
-                        } finally {
-                          setPhotoBusy(false);
-                        }
-                      }}
-                    />
-                  </label>
-                  {editing.photo && (
-                    <button
-                      type="button"
-                      className="btn"
-                      onClick={() => setEditing({ ...editing, photo: null })}
-                    >
-                      Kaldır
-                    </button>
-                  )}
-                </div>
-              </div>
-            </label>
-            <label>
-              Ürün adı
-              <input
-                autoFocus
-                required
-                maxLength={100}
-                value={editing.name}
-                onChange={(event) =>
-                  setEditing({ ...editing, name: event.target.value })
-                }
-              />
-            </label>
-            <label>
-              Açıklama
-              <textarea
-                rows={3}
-                maxLength={300}
-                value={editing.description}
-                onChange={(event) =>
-                  setEditing({ ...editing, description: event.target.value })
-                }
-              />
-            </label>
-            <details className="translation-fields">
-              <summary>İngilizce menü bilgileri · isteğe bağlı</summary>
+            <div className="product-editor-fields">
+              {formError && (
+                <p className="error-banner" role="alert">
+                  {formError}
+                </p>
+              )}
               <label>
-                İngilizce ürün adı
+                Ürün fotoğrafı
+                <div className="product-photo-editor">
+                  <span>
+                    {editing.photo ? (
+                      <img src={editing.photo} alt="" />
+                    ) : (
+                      <Camera size={22} />
+                    )}
+                  </span>
+                  <div>
+                    <label className="btn">
+                      {photoBusy
+                        ? "Yükleniyor…"
+                        : editing.photo
+                          ? "Değiştir"
+                          : "Fotoğraf yükle"}
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        disabled={photoBusy || preview}
+                        onChange={async (event) => {
+                          const file = event.target.files?.[0];
+                          event.target.value = "";
+                          if (!file) return;
+                          setPhotoBusy(true);
+                          try {
+                            const blob = await preparePhoto(file);
+                            const photo = await uploadImage(blob, "photos");
+                            setEditing((current) =>
+                              current ? { ...current, photo } : current,
+                            );
+                          } catch (error) {
+                            setFormError((error as Error).message);
+                          } finally {
+                            setPhotoBusy(false);
+                          }
+                        }}
+                      />
+                    </label>
+                    {editing.photo && (
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() => setEditing({ ...editing, photo: null })}
+                      >
+                        Kaldır
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </label>
+              {preview && (
+                <p className="muted">
+                  Önizlemede fotoğraf yükleme kapalıdır; değişiklikler yalnızca
+                  bu sayfada tutulur.
+                </p>
+              )}
+              <label>
+                Ürün adı
                 <input
+                  autoFocus
+                  required
                   maxLength={100}
-                  value={editing.nameEn ?? ""}
-                  onChange={(e) =>
-                    setEditing({ ...editing, nameEn: e.target.value })
+                  value={editing.name}
+                  onChange={(event) =>
+                    setEditing({ ...editing, name: event.target.value })
                   }
                 />
               </label>
               <label>
-                İngilizce açıklama
+                Açıklama
                 <textarea
                   rows={3}
                   maxLength={300}
-                  value={editing.descriptionEn ?? ""}
-                  onChange={(e) =>
-                    setEditing({ ...editing, descriptionEn: e.target.value })
-                  }
-                />
-              </label>
-              <label>
-                İngilizce kategori adı
-                <input
-                  maxLength={60}
-                  value={editing.categoryEn ?? ""}
-                  onChange={(e) =>
-                    setEditing({ ...editing, categoryEn: e.target.value })
-                  }
-                />
-                <small className="muted">
-                  Aynı kategoride ortak kullanılır. Boş alanlarda Türkçe içerik
-                  gösterilir.
-                </small>
-              </label>
-            </details>
-            <div className="form-columns">
-              <label>
-                Fiyat (₺)
-                <input
-                  type="number"
-                  min="0"
-                  max="1000000"
-                  step="0.01"
-                  required
-                  value={editing.price}
+                  value={editing.description}
                   onChange={(event) =>
-                    setEditing({
-                      ...editing,
-                      price: Number(event.target.value),
-                    })
+                    setEditing({ ...editing, description: event.target.value })
                   }
                 />
               </label>
-              <label>
-                Kategori
-                <AppSelect
-                  theme={access === "admin" ? "admin" : "standard"}
-                  value={editing.category}
-                  onValueChange={(value) =>
-                    setEditing({ ...editing, category: value })
+              <details className="translation-fields">
+                <summary>İngilizce menü bilgileri · isteğe bağlı</summary>
+                <label>
+                  İngilizce ürün adı
+                  <input
+                    maxLength={100}
+                    value={editing.nameEn ?? ""}
+                    onChange={(e) =>
+                      setEditing({ ...editing, nameEn: e.target.value })
+                    }
+                  />
+                </label>
+                <label>
+                  İngilizce açıklama
+                  <textarea
+                    rows={3}
+                    maxLength={300}
+                    value={editing.descriptionEn ?? ""}
+                    onChange={(e) =>
+                      setEditing({ ...editing, descriptionEn: e.target.value })
+                    }
+                  />
+                </label>
+                <label>
+                  İngilizce kategori adı
+                  <input
+                    maxLength={60}
+                    value={editing.categoryEn ?? ""}
+                    onChange={(e) =>
+                      setEditing({ ...editing, categoryEn: e.target.value })
+                    }
+                  />
+                  <small className="muted">
+                    Aynı kategoride ortak kullanılır. Boş alanlarda Türkçe
+                    içerik gösterilir.
+                  </small>
+                </label>
+              </details>
+              <div className="form-columns">
+                <label>
+                  Fiyat (₺)
+                  <input
+                    type="number"
+                    min="0"
+                    max="1000000"
+                    step="0.01"
+                    required
+                    value={editing.price}
+                    onChange={(event) =>
+                      setEditing({
+                        ...editing,
+                        price: Number(event.target.value),
+                      })
+                    }
+                  />
+                </label>
+                <label>
+                  Kategori
+                  <AppSelect
+                    theme={access === "admin" ? "admin" : "standard"}
+                    value={editing.category}
+                    onValueChange={(value) =>
+                      setEditing({ ...editing, category: value })
+                    }
+                  >
+                    {(categories.length ? categories : [editing.category]).map(
+                      (name) => (
+                        <option key={name}>{name}</option>
+                      ),
+                    )}
+                  </AppSelect>
+                </label>
+              </div>
+              <ItemLabelEditor item={editing} onChange={setEditing} />
+              <label className="toggle-label">
+                <span>
+                  <strong>Menüde göster</strong>
+                  <small>Kapalı ürünler müşterilere görünmez.</small>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={editing.available}
+                  onChange={(event) =>
+                    setEditing({ ...editing, available: event.target.checked })
                   }
-                >
-                  {(categories.length ? categories : [editing.category]).map(
-                    (name) => (
-                      <option key={name}>{name}</option>
-                    ),
-                  )}
-                </AppSelect>
+                />
               </label>
             </div>
-            <ItemLabelEditor item={editing} onChange={setEditing} />
-            <label className="toggle-label">
-              <span>
-                <strong>Menüde göster</strong>
-                <small>Kapalı ürünler müşterilere görünmez.</small>
-              </span>
-              <input
-                type="checkbox"
-                checked={editing.available}
-                onChange={(event) =>
-                  setEditing({ ...editing, available: event.target.checked })
-                }
-              />
-            </label>
             <footer>
               <button
                 type="button"
                 className="btn"
-                onClick={() => setEditing(null)}
+                disabled={photoBusy}
+                onClick={closeEditor}
               >
                 Vazgeç
               </button>
@@ -678,7 +731,7 @@ export default function ProductsManager({
               </button>
             </footer>
           </form>
-        </div>
+        </dialog>
       )}
     </section>
   );

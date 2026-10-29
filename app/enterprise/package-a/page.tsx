@@ -12,7 +12,12 @@ export const dynamic = "force-dynamic";
 export default async function EnterprisePage({
   searchParams,
 }: {
-  searchParams: Promise<{ preview?: string; scenario?: string; cafe?: string }>;
+  searchParams: Promise<{
+    preview?: string;
+    scenario?: string;
+    cafe?: string;
+    view?: string;
+  }>;
 }) {
   const query = await searchParams;
   const demo = process.env.NODE_ENV === "development" && query.preview === "1";
@@ -37,6 +42,7 @@ export default async function EnterprisePage({
       preview={demo}
       initialData={demo ? previewData(scenario) : null}
       requestedCafe={query.cafe}
+      initialView={query.view}
     />
   );
 }

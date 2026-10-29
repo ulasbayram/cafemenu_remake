@@ -53,3 +53,13 @@ Atamalar artık veritabanından okunur. Enterprise ve modül katalogları kodda 
 `node scripts/enterprise-foundation-test.mjs` aynı paketteki iki ayrı müşteriyi, URL değiştirerek diğer müşteriye erişim denemesini, hatalı sahiplik atamasını ve her veri sorgusunun işletme kapsamını sınar. Otomatik testler gerçek hesapları veya canlı verileri değiştirmez.
 
 `node scripts/admin-access-test.mjs` admin yetkisini, hesap sahibinin güvenilir kaynaktan seçilmesini, paket/modül bağımsızlığını, süre kontrolünü ve kaldırmanın erişimi kapatmasını sınar.
+
+# Ortak yönetim ekranları
+
+Paket A, standart paneldeki işletme bilgileri/QR, menü tasarımı, ürün ve kategori yönetimi, menü metni aktarımı, ziyaret/sipariş istatistikleri ve hesap ekranlarını kendi gezinmesinde açar. Ayrı kopyalar yerine ortak Dashboard ve ProductsManager bileşenleri kullanılır. Menü tasarım editörü de panel içinde açılır; geri düğmesi standart panele yönlendirmez.
+
+Ortak ekranlara yalnızca atamanın doğruladığı işletme verilir. Kaydetme işlemleri mevcut işletme sahibi API doğrulamasını kullanır; manuel sipariş ekleme/düzenleme Paket A'nın kendi yetki kontrolünde kalır. Yeni işletme oluşturma hesap düzeyindedir ve yeni işletmeye otomatik Enterprise yetkisi vermez; yönetici ayrıca paket atamalıdır.
+
+Enterprise ziyaret/sipariş raporları son 30 günü kapsar; genel bakıştaki özetler son 7 günlük kapsamını korur. `view` parametresi seçili sekmeyi yenileme sonrasında korur; `cafe`, `preview` ve `scenario` parametreleri gezinmede korunur.
+
+Geliştirme önizlemesinde ürün, menü ve işletme bilgisi kayıtları yalnızca sayfa belleğindedir. Fotoğraf/logo yükleme, yeni işletme oluşturma ve hesaptan çıkış canlı sistemde işlem yapmaz. Önizleme senaryoları ve diğer müşterilerin verileri birleştirilmez.

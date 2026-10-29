@@ -154,18 +154,31 @@ export async function disableOrderPush() {
 
 export function playOrderChime(context: AudioContext) {
   const start = context.currentTime;
-  [880, 1174, 1318].forEach((frequency, index) => {
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    const at = start + index * 0.13;
-    oscillator.type = "sine";
-    oscillator.frequency.value = frequency;
-    gain.gain.setValueAtTime(0, at);
-    gain.gain.linearRampToValueAtTime(0.12, at + 0.012);
-    gain.gain.exponentialRampToValueAtTime(0.001, at + 0.32);
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.start(at);
-    oscillator.stop(at + 0.34);
-  });
+  // A repeated two-tone bell, with harmonics that carry on small phone speakers.
+  // Keep overlapping envelopes below full scale; a short attack avoids clicks.
+  for (const repeat of [0, 0.85]) {
+    [1046.5, 784].forEach((frequency, index) => {
+      const at = start + repeat + index * 0.28;
+      for (const [type, multiplier, peak] of [
+        ["triangle", 1, 0.36],
+        ["sine", 2, 0.12],
+      ] as const) {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = type;
+        oscillator.frequency.value = frequency * multiplier;
+        gain.gain.setValueAtTime(0, at);
+        gain.gain.linearRampToValueAtTime(peak, at + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.001, at + 0.48);
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.onended = () => {
+          oscillator.disconnect();
+          gain.disconnect();
+        };
+        oscillator.start(at);
+        oscillator.stop(at + 0.5);
+      }
+    });
+  }
 }
