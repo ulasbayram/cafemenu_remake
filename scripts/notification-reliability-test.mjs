@@ -276,7 +276,7 @@ try {
 
   // The real order path (notifyNewOrder) must apply the same lifecycle rules.
   // Mocked svc() + mocked fetch: nothing leaves this process.
-  const { notifyNewOrder } = await import("../lib/order-push.ts");
+  const { notifyNewOrder, formatOrderItems } = await import("../lib/order-push.ts");
   const order = {
     id: "order-1",
     cafeId: "cafe-1",
@@ -295,7 +295,7 @@ try {
   state.records = [row()];
   state.status = 201;
   const before = state.fetches.length;
-  await notifyNewOrder(order);
+  await notifyNewOrder({ ...order, items: [{ name: "Latte", quantity: 2 }, { name: "Su", quantity: 1 }] });
   assert.equal(
     state.fetches.length - before,
     1,
@@ -305,6 +305,24 @@ try {
     state.records.length,
     1,
     "an accepted delivery keeps the subscription",
+  );
+
+  // The payload is encrypted, so assert the source summary directly.
+  assert.equal(
+    formatOrderItems([{ name: "Latte", quantity: 2 }, { name: "Su", quantity: 1 }]),
+    "2× Latte, 1× Su",
+    "item summary lists product names with quantities",
+  );
+  assert.equal(
+    formatOrderItems(Array.from({ length: 6 }, (_, i) => ({ name: `U${i}`, quantity: 1 }))),
+    "1× U0, 1× U1, 1× U2, 1× U3 +2 ürün",
+    "long orders are capped with a remainder count",
+  );
+  assert.equal(formatOrderItems([]), "", "no items yields no summary");
+  assert.equal(
+    formatOrderItems([{ name: "  ", quantity: 2 }, { name: "Su", quantity: 0 }]),
+    "",
+    "blank names and zero quantities are ignored",
   );
 
   state.status = 410;
@@ -619,5 +637,5 @@ await dispatch("notificationclick", {
 });
 assert.equal(opened.length, 1);
 console.log(
-  "PASS: push activation/timeout, gesture order, transient-error subscription preservation, VAPID rotation/pair validation, per-account test sends, provider expiry, iOS installation detection, locked/unfocused worker alerts and safe click fallback",
+  "PASS: push activation/timeout, gesture order, transient-error subscription preservation, VAPID rotation/pair validation, per-account test sends, provider expiry, stale-credential cleanup, Worker-legal redirect, item summary, iOS installation detection, locked/unfocused worker alerts and safe click fallback",
 );

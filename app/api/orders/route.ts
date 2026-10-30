@@ -198,6 +198,7 @@ export async function POST(request: Request) {
       ownerId: cafe.owner,
       tableNo: input.table,
       total,
+      items: lines,
     });
     return Response.json(
       {

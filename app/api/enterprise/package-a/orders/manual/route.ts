@@ -78,6 +78,7 @@ export async function POST(request: Request) {
       ownerId: uid,
       tableNo: input.table,
       total: orderTotal(lines),
+      items: lines,
     });
     return Response.json(created, { status: 201 });
   } catch (error) {

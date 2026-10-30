@@ -217,6 +217,20 @@ export function allowedPushEndpoint(value: string) {
   }
 }
 
+/** "2× Latte, 1× Su", capped at 4 lines so a large order cannot overflow the
+ * notification. Blank names and non-positive quantities are skipped. */
+export function formatOrderItems(
+  items: { name: string; quantity: number }[],
+): string {
+  const lines = items
+    .filter((line) => line.quantity > 0 && line.name?.trim())
+    .map((line) => `${line.quantity}× ${line.name.trim()}`);
+  if (!lines.length) return "";
+  const shown = lines.slice(0, 4);
+  const rest = lines.length - shown.length;
+  return shown.join(", ") + (rest > 0 ? ` +${rest} ürün` : "");
+}
+
 /** Notification failures must never turn a successfully saved order into
  * an apparent checkout failure (and provoke duplicate orders). */
 export async function notifyNewOrder(order: {
@@ -226,6 +240,7 @@ export async function notifyNewOrder(order: {
   ownerId: string;
   tableNo: number;
   total: number;
+  items?: { name: string; quantity: number }[];
 }) {
   try {
     const config = pushConfiguration();
@@ -243,9 +258,19 @@ export async function notifyNewOrder(order: {
       console.warn("Order push subscription lookup failed", error.code);
       return;
     }
+    // "2× Latte, 1× Su" — capped so a large order cannot overflow the
+    // notification. Falls back to the price-only body when items are absent.
+    const itemSummary = formatOrderItems(order.items ?? []);
+    const price = order.total.toLocaleString("tr-TR", {
+      style: "currency",
+      currency: "TRY",
+    });
     const payload = JSON.stringify({
       title: `${order.cafeName} · Yeni sipariş`,
-      body: `Masa ${order.tableNo} · ${order.total.toLocaleString("tr-TR", { style: "currency", currency: "TRY" })}`,
+      body: itemSummary
+        ? `Masa ${order.tableNo} · ${itemSummary} · ${price}`
+        : `Masa ${order.tableNo} · ${price}`,
+      items: itemSummary || null,
       orderId: order.id,
       cafeId: order.cafeId,
       url: `/?view=orders&cafe=${encodeURIComponent(order.cafeId)}`,
