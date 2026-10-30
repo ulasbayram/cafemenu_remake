@@ -2,10 +2,26 @@ import { buildPushPayload } from "@block65/webcrypto-web-push";
 import { svc } from "@/db";
 import { env } from "@/lib/jwt";
 
-export function pushConfiguration() {
-  const worker = (
-    globalThis as unknown as { FINCAN_WORKER_ENV?: Record<string, string> }
-  ).FINCAN_WORKER_ENV;
+/** VAPID signing material used for every Web Push request. */
+export type PushConfiguration = {
+  publicKey: string;
+  privateKey: string;
+  subject: string;
+};
+
+/** Worker bindings bridged onto globalThis by patch-wrangler.mjs. */
+function workerEnv(): Record<string, string> | undefined {
+  const scope: unknown = globalThis;
+  if (typeof scope !== "object" || scope === null) return undefined;
+  if (!("FINCAN_WORKER_ENV" in scope)) return undefined;
+  const value: unknown = scope.FINCAN_WORKER_ENV;
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, string>)
+    : undefined;
+}
+
+export function pushConfiguration(): PushConfiguration | null {
+  const worker = workerEnv();
   const read = (key: string) =>
     (env(key) ?? worker?.[key])?.trim().replace(/^(["'])(.*)\1$/, "$2");
   const publicKey = read("VAPID_PUBLIC_KEY");
@@ -18,9 +34,7 @@ export function pushConfiguration() {
 
 let checked: { key: string; valid: Promise<boolean> } | null = null;
 /** Check the actual signing pair, not just the existence of three env values. */
-export function validPushConfiguration(
-  config: NonNullable<ReturnType<typeof pushConfiguration>>,
-) {
+export function validPushConfiguration(config: PushConfiguration) {
   const key = JSON.stringify(config);
   if (checked?.key === key) return checked.valid;
   const valid = (async () => {
@@ -96,7 +110,14 @@ export function validPushConfiguration(
 
 export type PushDelivery = {
   accepted: boolean;
+  /** The push service no longer knows this subscription (404/410). */
   expired: boolean;
+  /**
+   * The push service rejected our credentials for this subscription (401/403),
+   * typically because the VAPID keypair was regenerated. The stored row can
+   * never succeed again and must be dropped so the client re-registers.
+   */
+  stale: boolean;
   status: number | null;
   code: string;
 };
@@ -106,12 +127,13 @@ export async function sendDevicePush(
     subscription: Parameters<typeof buildPushPayload>[1];
   },
   payload: unknown,
-  config: NonNullable<ReturnType<typeof pushConfiguration>>,
+  config: PushConfiguration,
 ): Promise<PushDelivery> {
   if (!allowedPushEndpoint(entry.endpoint))
     return {
       accepted: false,
       expired: false,
+      stale: false,
       status: null,
       code: "PUSH_ENDPOINT",
     };
@@ -129,16 +151,24 @@ export async function sendDevicePush(
       redirect: "error",
       signal: AbortSignal.timeout(8000),
     });
+    const status = response.status;
     return {
       accepted: response.ok,
-      expired: response.status === 404 || response.status === 410,
-      status: response.status,
-      code: response.ok ? "PUSH_ACCEPTED" : `PUSH_PROVIDER_${response.status}`,
+      expired: status === 404 || status === 410,
+      // 401/403 means the credentials no longer match this subscription.
+      stale: status === 401 || status === 403,
+      status,
+      code: response.ok
+        ? "PUSH_ACCEPTED"
+        : status === 401
+          ? "PUSH_CREDENTIAL_STALE"
+          : `PUSH_PROVIDER_${status}`,
     };
   } catch (error) {
     return {
       accepted: false,
       expired: false,
+      stale: false,
       status: null,
       code:
         (error as Error).name === "TimeoutError"
@@ -208,14 +238,27 @@ export async function notifyNewOrder(order: {
       (data ?? []).map(async (entry) => {
         if (!allowedPushEndpoint(entry.endpoint)) return;
         const result = await sendDevicePush(entry, JSON.parse(payload), config);
-        if (result.expired)
+        if (result.expired || result.stale) {
+          // The row can never succeed again: drop it so the device re-registers
+          // on its next sync instead of failing silently forever.
           await svc()
             .from("order_push_subscriptions")
             .delete()
             .eq("endpoint", entry.endpoint)
             .eq("user_id", order.ownerId);
-        else if (!result.accepted)
-          console.warn("Order push delivery failed", result.code);
+          console.warn("Order push subscription removed", {
+            code: result.code,
+            provider: new URL(entry.endpoint).hostname,
+            userId: order.ownerId,
+          });
+        } else if (!result.accepted) {
+          console.warn("Order push delivery failed", {
+            code: result.code,
+            status: result.status,
+            provider: new URL(entry.endpoint).hostname,
+            userId: order.ownerId,
+          });
+        }
       }),
     );
   } catch {

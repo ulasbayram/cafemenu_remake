@@ -230,7 +230,32 @@ try {
       .status,
     502,
   );
+  // 403/401 mean the server's VAPID credentials no longer match this
+  // subscription. The row is unusable and must be dropped, not preserved.
+  assert.equal(
+    state.records.length,
+    0,
+    "403 must delete the unusable row",
+  );
+  // Re-register, then prove a 401 is handled the same way as 403.
+  assert.equal((await route.POST(req(subscription))).status, 200);
   assert.equal(state.records.length, 1);
+  state.status = 401;
+  const stale = await route.POST(
+    req({ action: "test", endpoint: subscription.endpoint }),
+  );
+  assert.equal(stale.status, 502);
+  assert.match(
+    (await stale.json()).error,
+    /PUSH_TEST_STALE/,
+    "401 must be reported as a stale registration, not a generic failure",
+  );
+  assert.equal(
+    state.records.length,
+    0,
+    "a stale registration must be deleted so the device re-registers",
+  );
+  assert.equal((await route.POST(req(subscription))).status, 200);
   state.status = 410;
   assert.equal(
     (await route.POST(req({ action: "test", endpoint: subscription.endpoint })))
@@ -238,8 +263,67 @@ try {
     502,
   );
   assert.equal(state.records.length, 0);
+
+  // The real order path (notifyNewOrder) must apply the same lifecycle rules.
+  // Mocked svc() + mocked fetch: nothing leaves this process.
+  const { notifyNewOrder } = await import("../lib/order-push.ts");
+  const order = {
+    id: "order-1",
+    cafeId: "cafe-1",
+    cafeName: "Test Kafe",
+    ownerId: "owner-a",
+    tableNo: 3,
+    total: 120,
+  };
+  // The table stores the subscription object as jsonb (written by POST).
+  const row = () => ({
+    endpoint: subscription.endpoint,
+    subscription,
+    user_id: "owner-a",
+  });
+
+  state.records = [row()];
+  state.status = 201;
+  const before = state.fetches.length;
+  await notifyNewOrder(order);
+  assert.equal(
+    state.fetches.length - before,
+    1,
+    "an order attempts exactly one delivery per subscription",
+  );
+  assert.equal(
+    state.records.length,
+    1,
+    "an accepted delivery keeps the subscription",
+  );
+
+  state.status = 410;
+  await notifyNewOrder(order);
+  assert.equal(state.records.length, 0, "410 removes the subscription");
+
+  // 401 (VAPID key mismatch) is the production failure: it must also remove
+  // the row, otherwise the device stays broken forever.
+  state.records = [row()];
+  state.status = 401;
+  await notifyNewOrder(order);
+  assert.equal(
+    state.records.length,
+    0,
+    "401 (VAPID mismatch) removes the subscription so the device re-registers",
+  );
+
+  // A transient provider error must NOT destroy a valid subscription.
+  state.records = [row()];
+  state.status = 500;
+  await notifyNewOrder(order);
+  assert.equal(
+    state.records.length,
+    1,
+    "a transient provider error keeps the subscription",
+  );
 } finally {
   globalThis.fetch = originalFetch;
+  state.records = [];
 }
 
 // Real client implementation, with simulated browser services. Never subscribes

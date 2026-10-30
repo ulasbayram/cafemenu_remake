@@ -110,25 +110,30 @@ export async function POST(request: Request) {
         },
         config,
       );
-      if (result.expired)
+      if (result.expired || result.stale) {
+        // Unusable row: remove it so the next "enable" creates a fresh one.
         await svc()
           .from("order_push_subscriptions")
           .delete()
           .eq("user_id", uid)
           .eq("endpoint", device.endpoint);
+      }
       if (!result.accepted)
         return Response.json(
           {
             error: result.expired
               ? "Telefon kaydı sona ermiş. Bildirimleri yeniden açın. Kod: PUSH_TEST_EXPIRED"
-              : `Bildirim servisi mesajı kabul etmedi. Kod: ${result.code}`,
+              : result.stale
+                ? "Telefon kaydı artık geçerli değil. Bildirimleri yeniden açın. Kod: PUSH_TEST_STALE"
+                : `Bildirim servisi mesajı kabul etmedi. Kod: ${result.code}`,
           },
           { status: 502 },
         );
       return Response.json({
         accepted: true,
+        // The push service only queued the message; it cannot confirm display.
         message:
-          "Test bildirimi telefonun bildirim servisine iletildi. Kilit ekranından veya bildirim merkezinden kontrol edin.",
+          "Test bildirimi telefonun bildirim servisine gönderildi. Birkaç saniye içinde görünmezse bildirim iznini, odak (rahatsız etme) modunu ve iPhone'da Ana Ekrana Ekle kurulumunu kontrol edin.",
       });
     }
     const input = subscriptionSchema.safeParse(body);
