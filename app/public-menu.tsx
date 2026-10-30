@@ -124,6 +124,17 @@ export default function PublicMenu({
       setSending(false);
     }
   }
+  /**
+   * Single close path for the cart sheet. The confirmation state must be
+   * cleared here, not only in "Menüye dön": closing via the X or the backdrop
+   * used to leave `sentOrder` set, so the next cart open showed the stale
+   * success screen and ordering appeared broken.
+   */
+  function closeCartSheet() {
+    if (sending) return;
+    setSentOrder(null);
+    setCartOpen(false);
+  }
   /** Opt-in GPS at cart-open; denial is fine — IP distance covers the rest. */
   function askLocation() {
     if (!navigator.geolocation) return;
@@ -324,7 +335,7 @@ export default function PublicMenu({
       {cartOpen && orderEnabled && (
         <div
           className="order-sheet-overlay"
-          onMouseDown={() => !sending && setCartOpen(false)}
+          onMouseDown={() => closeCartSheet()}
         >
           <section
             className="order-sheet"
@@ -339,7 +350,7 @@ export default function PublicMenu({
               </div>
               <button
                 aria-label={text("Sepeti kapat", "Close cart")}
-                onClick={() => setCartOpen(false)}
+                onClick={() => closeCartSheet()}
               >
                 <X size={20} />
               </button>
@@ -365,10 +376,7 @@ export default function PublicMenu({
                 />
                 <button
                   className="btn primary full"
-                  onClick={() => {
-                    setSentOrder(null);
-                    setCartOpen(false);
-                  }}
+                  onClick={() => closeCartSheet()}
                 >
                   {text("Menüye dön", "Back to menu")}
                 </button>

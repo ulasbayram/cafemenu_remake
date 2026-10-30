@@ -214,6 +214,34 @@ for (const file of [
   );
 }
 
+// The cart sheet has three close affordances (X, backdrop, "Menüye dön").
+// They must share one handler: clearing the confirmation state in only one of
+// them left `sentOrder` set, so reopening the cart showed the stale success
+// screen and the guest could not order again.
+const menuSource = readFileSync(join(root, "app/public-menu.tsx"), "utf8");
+const clearSentOrder = [...menuSource.matchAll(/setSentOrder\(null\)/g)];
+assert.equal(
+  clearSentOrder.length,
+  1,
+  "setSentOrder(null) must appear once, inside the shared closeCartSheet()",
+);
+assert.match(
+  menuSource,
+  /function closeCartSheet\(\)/,
+  "the cart sheet must expose a single closeCartSheet() handler",
+);
+assert.equal(
+  (menuSource.match(/setCartOpen\(false\)/g) ?? []).length,
+  1,
+  "setCartOpen(false) must only live in closeCartSheet()",
+);
+for (const call of ["onClick={() => closeCartSheet()}", "onMouseDown={() => closeCartSheet()}"]) {
+  assert.ok(
+    menuSource.includes(call),
+    `every close affordance must call closeCartSheet(), missing: ${call}`,
+  );
+}
+
 // ── Deploy wiring: env is forwarded, migrations listable ────────────────────
 const sitesEnv = readFileSync(join(root, "scripts/sites-env.mjs"), "utf8");
 assert.match(
