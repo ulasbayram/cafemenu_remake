@@ -125,7 +125,7 @@ export async function POST(request: Request) {
               ? "Telefon kaydı sona ermiş. Bildirimleri yeniden açın. Kod: PUSH_TEST_EXPIRED"
               : result.stale
                 ? "Telefon kaydı artık geçerli değil. Bildirimleri yeniden açın. Kod: PUSH_TEST_STALE"
-                : `Bildirim servisi mesajı kabul etmedi. Kod: ${result.code}`,
+                : `Bildirim servisi mesajı kabul etmedi. Kod: ${result.code}${result.detail ? ` (${result.detail})` : ""}`,
           },
           { status: 502 },
         );

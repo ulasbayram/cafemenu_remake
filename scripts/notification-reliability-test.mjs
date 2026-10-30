@@ -204,7 +204,17 @@ assert.equal((await route.POST(req(subscription))).status, 200);
 assert.equal(state.records[0].user_id, "owner-a");
 const originalFetch = globalThis.fetch;
 globalThis.fetch = async (endpoint, options) => {
-  state.fetches.push({ endpoint, headers: new Headers(options.headers) });
+  state.fetches.push({
+    endpoint,
+    headers: new Headers(options.headers),
+    redirect: options.redirect,
+  });
+  // Cloudflare Workers throws on redirect:"error" at runtime; assert the
+  // request only ever uses a mode the edge accepts.
+  if (options.redirect !== undefined && !["follow", "manual"].includes(options.redirect))
+    throw new TypeError(
+      `Invalid redirect value ${JSON.stringify(options.redirect)}; Workers accepts only "follow" or "manual"`,
+    );
   return new Response(null, { status: state.status });
 };
 try {

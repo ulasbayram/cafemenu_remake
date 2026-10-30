@@ -120,6 +120,8 @@ export type PushDelivery = {
   stale: boolean;
   status: number | null;
   code: string;
+  /** Original error text when the send threw, for diagnostics only. */
+  detail?: string;
 };
 export async function sendDevicePush(
   entry: {
@@ -146,9 +148,12 @@ export async function sendDevicePush(
       entry.subscription,
       config,
     );
+    // Workers rejects redirect: "error" at runtime ("won't be implemented
+    // since it does not make sense at the edge"), which made every push throw.
+    // "manual" keeps the same intent: never follow a provider redirect.
     const response = await fetch(entry.endpoint, {
       ...request,
-      redirect: "error",
+      redirect: "manual",
       signal: AbortSignal.timeout(8000),
     });
     const status = response.status;
@@ -165,15 +170,27 @@ export async function sendDevicePush(
           : `PUSH_PROVIDER_${status}`,
     };
   } catch (error) {
+    const name = (error as Error)?.name ?? "Error";
+    const message = String((error as Error)?.message ?? error).slice(0, 200);
+    let provider: string | null = null;
+    try {
+      provider = new URL(entry.endpoint).hostname;
+    } catch {
+      provider = null;
+    }
+    // Without this the UI only ever shows "PUSH_SEND_ERROR", which is
+    // undiagnosable. Keep the provider host and the real reason.
+    console.warn("Order push send failed", { name, message, provider });
     return {
       accepted: false,
       expired: false,
       stale: false,
       status: null,
       code:
-        (error as Error).name === "TimeoutError"
+        name === "TimeoutError"
           ? "PUSH_SEND_TIMEOUT"
-          : "PUSH_SEND_ERROR",
+          : `PUSH_SEND_ERROR_${name.replace(/[^a-z0-9]/gi, "").toUpperCase() || "UNKNOWN"}`,
+      detail: message,
     };
   }
 }
