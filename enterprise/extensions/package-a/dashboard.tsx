@@ -186,12 +186,17 @@ export default function PackageADashboard({
             <Crown size={15} />
             PAKET A · ENTERPRISE
           </span>
-          <button
-            className={styles.refresh}
-            onClick={() => navigate("settings")}
-          >
-            Hesap ve kullanım <Settings size={15} />
-          </button>
+          <div className={styles.topbarActions}>
+            <NavLink href="/?view=overview">
+              Standart panel <ArrowUpRight size={15} />
+            </NavLink>
+            <button
+              className={styles.refresh}
+              onClick={() => navigate("settings")}
+            >
+              Hesap ve kullanım <Settings size={15} />
+            </button>
+          </div>
         </header>
         <div className={styles.content}>
           {preview && (

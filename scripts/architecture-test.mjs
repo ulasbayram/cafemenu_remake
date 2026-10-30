@@ -177,6 +177,21 @@ for (const rel of [
   );
 }
 
+// Both package dashboards must keep a way back to the regular dashboard.
+// The link targets "/?view=overview" because bare "/" redirects an
+// enterprise user straight back to their package (a dead button).
+for (const rel of [
+  "enterprise/extensions/package-a/dashboard.tsx",
+  "modules/erp/dashboard.tsx",
+]) {
+  const source = readFileSync(join(root, rel), "utf8");
+  assert.match(
+    source,
+    /href="\/\?view=overview"/,
+    `${rel} must keep a return-to-dashboard link to "/?view=overview"`,
+  );
+}
+
 // next/link's client navigation is broken on this vinext build: its click
 // handler calls a missing `navigateClientSide` and throws inside
 // startTransition, so the URL never changes. All navigation must go through
